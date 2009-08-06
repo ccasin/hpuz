@@ -187,11 +187,11 @@ cintToBool = (0 ==)
  #}
 
 
-{# fun puz_notes_get as puzNotesGet
+{# fun puz_notes_get as puzGetNotes
    { puzIn* `Puz' } -> `Ptr CUChar' id
  #}
 
-{# fun puz_notes_set as puzNotesSet
+{# fun puz_notes_set as puzSetNotes
    { puzIn* `Puz'
    , id `Ptr CUChar' } 
    -> 
