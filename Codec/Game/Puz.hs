@@ -66,6 +66,8 @@ readString ptr =
 
 {- ---- Exposed library ---- -}
 
+-- XXX this should verify the checksums
+
 loadPuzzle :: String -> IO Puzzle
 loadPuzzle fname =
   do --- Start by getting internal puz representation
