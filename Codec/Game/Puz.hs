@@ -1,5 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Codec.Game.Puz where
+module Codec.Game.Puz 
+       (Square, Dir, Puzzle,
+        loadPuzzle)
+where
 
 import Codec.Game.Puz.Internal
 
