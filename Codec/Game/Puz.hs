@@ -1,6 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Codec.Game.Puz 
-       (Square, Dir, Puzzle,
+       (Square (Black,Letter), Dir (Across,Down), 
+        Puzzle (Puzzle),
+        width,height,grid,solution,title,author,notes,copyright,clueCount,
+          clues,
         loadPuzzle)
 where
 
