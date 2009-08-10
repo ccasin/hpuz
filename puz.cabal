@@ -18,7 +18,7 @@ format from haskell.
 }
 
 Library
-  Build-Depends:     base, bytestring >= 0.9
+  Build-Depends:     base, bytestring >= 0.9, array
   Exposed-modules:   Codec.Game.Puz
   Other-modules:     Codec.Game.Puz.Internal
   build-tools:       c2hs >= 0.16.0

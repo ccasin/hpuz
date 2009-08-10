@@ -15,7 +15,9 @@ import Foreign.Ptr
 import Foreign.C
 import Foreign.Marshal.Array
 
-import Data.ByteString hiding (map)
+import Data.ByteString hiding (map,foldl')
+import Data.Array
+import Data.List
 
 import Control.Monad
 
@@ -28,10 +30,13 @@ data Square = Black
 data Dir = Across | Down
   deriving (Eq, Show)
 
+
+-- The board arrays are row-major and numbered from (0,0) to
+-- (width-1,height-1)
 data Puzzle =
   Puzzle {width,height :: Int,
-          grid      :: [Square],
-          solution  :: [Square],
+          grid      :: Array (Int,Int) Square,
+          solution  :: Array (Int,Int) Square,
           title     :: String,
           author    :: String,
           notes     :: String,
@@ -94,12 +99,23 @@ loadPuzzle fname =
 
      --- we use the pointers and the puz data to get everything we need 
      --- to build a Puzzle
-     width <- puzGetWidth puz
+     width  <- puzGetWidth puz
      height <- puzGetHeight puz
 
      let sz = width*height
-     grid <- readBoard sz gridPtr
-     solution <- readBoard sz solPtr
+     gridsqs <- readBoard sz gridPtr
+     solutionsqs <- readBoard sz solPtr
+     -- these guys are in row-major order, so we need to flip
+     let numberFold :: (Int,Int,[((Int,Int),Square)]) -> Square ->
+                       (Int,Int,[((Int,Int),Square)])
+         numberFold (x,y,l) sq = 
+           let (x',y') = if x+1 == width then (0,y+1) else (x+1,y) in
+           (x',y',(((x,y),sq):l))
+     let grid = array ((0,0),(width-1,height-1)) $
+                  (\(_,_,l) -> l) $ foldl' numberFold (0,0,[]) gridsqs
+     let solution = array ((0,0),(width-1,height-1)) $
+                      (\(_,_,l) -> l) $ foldl' numberFold (0,0,[]) solutionsqs
+     
 
      title <- readString titlePtr
      author <- readString authPtr
@@ -113,3 +129,4 @@ loadPuzzle fname =
        Puzzle {width, height, grid, solution,
                title, author, copyright, notes,
                clueCount, clues}
+
