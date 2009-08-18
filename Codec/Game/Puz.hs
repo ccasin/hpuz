@@ -2,8 +2,7 @@
 module Codec.Game.Puz 
        (Square (Black,Letter), Dir (Across,Down), 
         Puzzle (Puzzle),
-        width,height,grid,solution,title,author,notes,copyright,clueCount,
-          clues,
+        width,height,grid,solution,title,author,notes,copyright,clues,
         loadPuzzle)
 where
 
@@ -15,7 +14,7 @@ import Foreign.Ptr
 import Foreign.C
 import Foreign.Marshal.Array
 
-import Data.ByteString hiding (map,foldl')
+import Data.ByteString hiding (map,foldl',zipWith)
 import Data.Array
 import Data.List
 
@@ -41,10 +40,18 @@ data Puzzle =
           author    :: String,
           notes     :: String,
           copyright :: String,
-          clueCount :: Int,
           clues     :: [(Int,Dir,String)]}
   deriving (Show)
 
+{- how to order clues -}
+orderClues :: (Int,Dir,String) -> (Int,Dir,String) -> Ordering
+orderClues (i1,d1,_) (i2,d2,_) = 
+  case compare i1 i2 of
+    EQ -> case (d1,d2) of
+            (Across,Down) -> LT
+            (Down,Across) -> GT
+            _ -> EQ
+    c -> c
 
 {- ---- Internal marshalling stuff ---- -}
 
@@ -71,6 +78,36 @@ readString ptr =
      return $ map (toEnum . (fromIntegral :: CUChar -> Int)) cuchars
 
 
+numberClues :: [String] -> Array (Int,Int) Square -> [(Int,Dir,String)]
+numberClues cls bd =
+  zipWith (\(a,b) c -> (a,b,c)) (findclues 1 (0,0)) cls
+  where
+    (_,(xmax,ymax)) = bounds bd
+
+    -- sq number -> position -> list of places clues are needed
+    findclues :: Int -> (Int,Int) -> [(Int,Dir)]
+    findclues n (x,y) =
+        if black then rec else
+          case (asq,bsq) of
+            (True,True) -> (n,Across) : (n,Down) : rec
+            (True,False) -> (n,Across) : rec
+            (False,True) -> (n,Down) : rec
+            (False,False) -> rec
+
+      where
+        black = bd ! (x,y) == Black
+        asq = x == 0 || bd ! (x-1,y) == Black 
+        bsq = y == 0 || bd ! (x,y-1) == Black
+
+        nextind = if x == xmax then
+                    if y == ymax then Nothing else Just (0,y+1)
+                  else Just (x+1,y)
+
+        nextnum = if (not black) && (asq || bsq) then n+1 else n
+
+        rec = case nextind of Nothing -> []
+                              Just ind -> findclues nextnum ind
+    
 
 {- ---- Exposed library ---- -}
 
@@ -123,10 +160,10 @@ loadPuzzle fname =
      notes <- readString notePtr
 
      clueStrs <- mapM readString cluePtrs
-     let clues = map (\s -> (0,Across,s)) clueStrs
+     let clues = numberClues clueStrs grid
 
      return $
        Puzzle {width, height, grid, solution,
                title, author, copyright, notes,
-               clueCount, clues}
+               clues}
 
