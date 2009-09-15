@@ -40,8 +40,11 @@ puzIn :: Puz -> (Ptr Puz -> IO b) -> IO b
 puzIn (Puz fp) = withForeignPtr fp
 
 -- OUT
-cintToBool :: CInt -> Bool
-cintToBool = (0 ==)
+cerrToBool :: CInt -> Bool
+cerrToBool = (0 ==)
+
+cintToBool :: Cint -> Bool
+cintToBool = (1 ==)
 
 {- puz struct creation, initialization -}
 
@@ -65,7 +68,7 @@ cintToBool = (0 ==)
  #}
 
 {# fun puz_cksums_check as puzCksumsCheck
-   { id `Ptr Puz' } -> `Bool' cintToBool
+   { id `Ptr Puz' } -> `Bool' cerrToBool
  #}
 
 {# fun puz_cksums_commit as puzCksumsCommit
