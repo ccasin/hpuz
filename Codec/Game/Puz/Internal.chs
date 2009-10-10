@@ -43,7 +43,7 @@ puzIn (Puz fp) = withForeignPtr fp
 cerrToBool :: CInt -> Bool
 cerrToBool = (0 ==)
 
-cintToBool :: Cint -> Bool
+cintToBool :: CInt -> Bool
 cintToBool = (1 ==)
 
 {- puz struct creation, initialization -}
