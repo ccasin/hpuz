@@ -8,6 +8,8 @@ import Foreign
 import Foreign.Ptr
 import Foreign.C
 
+import Text.ParserCombinators.Parsec
+
 {# pointer *puz_head_t as PuzHead foreign newtype #}
 {# pointer *puzzle_t as Puz foreign newtype #}
 
@@ -45,6 +47,29 @@ cerrToBool = (0 ==)
 
 cintToBool :: CInt -> Bool
 cintToBool = (1 ==)
+
+stringOut :: Ptr CUChar -> IO String
+stringOut ptr =
+  do cuchars <- peekArray0 (0 :: CUChar) ptr
+     return $ map (toEnum . (fromIntegral :: CUChar -> Int)) cuchars
+
+rtblParser :: Parser [(Int,String)]
+rtblParser =
+  sepEndBy (do spaces
+               ds <- many1 digit
+               char ':'
+               reb <- many1 alphaNum
+               return (read ds, reb)) 
+           (char ';')
+
+rtblOut :: Ptr CUChar -> IO [(Int,String)]
+rtblOut ptr =
+    do str <- stringOut ptr
+       case parse rtblParser "rebus table" str of
+         Left err -> error ("Ill-formed puzzle file: " ++ show err)
+         Right tbl -> return tbl
+    
+
 
 {- puz struct creation, initialization -}
 
@@ -108,7 +133,7 @@ cintToBool = (1 ==)
 
 {# fun puz_solution_set as puzSetSolution
    { puzIn* `Puz' 
-   , id `Ptr CUChar' 
+   , id `Ptr CUChar'
    } -> 
    `()'
  #}
@@ -127,7 +152,7 @@ cintToBool = (1 ==)
 
 
 {# fun puz_title_get as puzGetTitle
-   { puzIn* `Puz' } -> `Ptr CUChar' id
+   { puzIn* `Puz' } -> `String' stringOut*
  #}
 
 {# fun puz_title_set as puzSetTitle
@@ -139,7 +164,7 @@ cintToBool = (1 ==)
 
 
 {# fun puz_author_get as puzGetAuthor
-   { puzIn* `Puz' } -> `Ptr CUChar' id
+   { puzIn* `Puz' } -> `String' stringOut*
  #}
 
 {# fun puz_author_set as puzSetAuthor
@@ -151,7 +176,7 @@ cintToBool = (1 ==)
 
 
 {# fun puz_copyright_get as puzGetCopyright
-   { puzIn* `Puz'} -> `Ptr CUChar' id
+   { puzIn* `Puz'} -> `String' stringOut*
  #}
 
 {# fun puz_copyright_set as puzSetCopyright
@@ -178,7 +203,7 @@ cintToBool = (1 ==)
    { puzIn* `Puz'
    , `Int' 
    } -> 
-   `Ptr CUChar' id
+   `String' stringOut*
  #}
 
 {# fun puz_clue_set as puzSetClue
@@ -191,7 +216,7 @@ cintToBool = (1 ==)
 
 
 {# fun puz_notes_get as puzGetNotes
-   { puzIn* `Puz' } -> `Ptr CUChar' id
+   { puzIn* `Puz' } -> `String' stringOut*
  #}
 
 {# fun puz_notes_set as puzSetNotes
@@ -201,6 +226,62 @@ cintToBool = (1 ==)
    `()'
  #}
 
+
+{# fun puz_has_rebus as puzHasRebus
+   { puzIn* `Puz' } -> `Bool' cintToBool
+ #}
+
+{# fun puz_rebus_get as puzGetRebus
+   { puzIn* `Puz' } -> `Ptr CUChar' id
+ #}
+
+{# fun puz_rebus_set as puzSetRebus
+   { puzIn* `Puz'
+   , id `Ptr CUChar' }
+   ->
+   `()'
+ #}
+
+{# fun puz_rebus_count_get as puzGetRebusCount
+   { puzIn* `Puz' } -> `Int'
+ #}
+
+{# fun puz_rebus_count_set as puzSetRebusCount
+   { puzIn* `Puz'
+   , `Int' } 
+   ->
+   `()'
+ #}
+
+
+{# fun puz_rtblstr_get as puzGetRtbl
+   { puzIn* `Puz' } -> `[(Int,String)]' rtblOut*
+ #}
+     
+{# fun puz_rtblstr_set as puzSetRtbl
+   { puzIn* `Puz'
+   , `Int'
+   , id `Ptr CUChar' }
+   ->
+   `()'
+ #}
+
+
+
+{# fun puz_has_extras as puzHasExtras
+   { puzIn* `Puz' } -> `Bool' cintToBool
+ #}
+
+{# fun puz_extras_get as puzGetExtras
+   { puzIn* `Puz' } -> `Ptr CUChar' id
+ #}
+
+{# fun puz_extras_set as puzSetExtras
+   { puzIn* `Puz'
+   , id `Ptr CUChar' }
+   ->
+   `()'
+ #}
 
 
 ------

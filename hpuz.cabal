@@ -18,9 +18,9 @@ format from haskell.
 }
 
 Library
-  Build-Depends:     base, bytestring >= 0.9, array
+  Build-Depends:     base, bytestring >= 0.9, array, parsec >= 3.0.0
   Exposed-modules:   Codec.Game.Puz
   Other-modules:     Codec.Game.Puz.Internal
   build-tools:       c2hs >= 0.16.0
   extra-libraries:   puz
-  ghc-options:       -Wall
+  ghc-options:       -Wall -O1

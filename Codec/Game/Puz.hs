@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Codec.Game.Puz 
-       (Square (Black,Letter), Dir (Across,Down), 
-        Puzzle (Puzzle),
+       (Style (Plain,Circle), Square (Black,Letter,Rebus), 
+        Dir (Across,Down), Puzzle (Puzzle),
         width,height,grid,solution,title,author,notes,copyright,clues,
         loadPuzzle)
 where
@@ -17,13 +17,18 @@ import Foreign.Marshal.Array
 import Data.ByteString hiding (map,foldl',zipWith)
 import Data.Array
 import Data.List
+import Data.Char
 
 import Control.Monad
 
 {- ------ Types ------- -}
 
+data Style = Plain | Circle
+  deriving (Eq, Show)
+
 data Square = Black
-            | Letter (Maybe Char)
+            | Letter (Maybe Char) Style
+            | Rebus (Maybe String) Style
   deriving (Eq, Show)
 
 data Dir = Across | Down
@@ -55,26 +60,52 @@ orderClues (i1,d1,_) (i2,d2,_) =
 
 {- ---- Internal marshalling stuff ---- -}
 
-cucharToSquare :: CUChar -> Square
-cucharToSquare sq = 
-    if sq == blackChar then Black else
-      if sq == blankChar then Letter Nothing else
-        Letter $ Just $ toEnum $ fromIntegral sq
+-- The bool is true of this is a game board and false if it is a solution
+-- board
+charToSquare :: Bool -> [(Int,String)] -> Char -> Char -> Char -> Square
+charToSquare isGame rtbl sq rbs ext =
+    if sq == blackChar then Black 
+    else
+      case rebus of
+        Just str -> if isGame then 
+                        let str' = if sq == blankChar then Nothing
+                                                      else Just [sq]
+                        in Rebus str' style
+                    else Rebus (Just str) style
+        Nothing -> if sq == blankChar then Letter Nothing style
+                     else Letter (Just sq) Plain
   where
-    blackChar,blankChar :: CUChar
-    blackChar = fromIntegral $ fromEnum '.'
-    blankChar = fromIntegral $ fromEnum '-'
+    blackChar,blankChar :: Char
+    blackChar = '.'
+    blankChar = '-'
 
+    style = case ord ext of
+              0   -> Plain
+              128 -> Circle
+              _   -> Plain   --XXX maybe I should issue some kind of warning
+    
+    rebus = case ord rbs of
+              0 -> Nothing
+              n -> case lookup n rtbl of
+                     Nothing -> error ("Puzzle file contains ill-formed " ++
+                                       "rebus section")
+                     Just str -> Just str
+    
 
+-- The first string is the board.  The second string is the rebus board
+-- (or all 0s if none exists).  The [(Int,String)] is the rebus table,
+-- (or an empty list of there aren't any to lookup).  The third String
+-- is the extras board.
+--
+-- The bool should be True if this is a game board and false if it is a
+-- solution board. 
+readBoard :: Bool -> String -> String -> [(Int,String)] -> String -> [Square]
+readBoard isGame bd rbs rtbl ext = 
+    zipWith3 (charToSquare isGame rtbl) bd rbs ext
 
-readBoard :: Int -> Ptr CUChar -> IO [Square]
-readBoard sz ptr =
-  do chrs <- peekArray sz ptr
-     return $ map cucharToSquare chrs
-
-readString :: Ptr CUChar -> IO String
-readString ptr =
-  do cuchars <- peekArray0 (0 :: CUChar) ptr
+boardStringOut :: Int -> Ptr CUChar -> IO String
+boardStringOut sz ptr =
+  do cuchars <- peekArray sz ptr
      return $ map (toEnum . (fromIntegral :: CUChar -> Int)) cuchars
 
 
@@ -123,45 +154,53 @@ loadPuzzle fname =
          cchars = foldr' (\w cs -> (fromIntegral w) : cs) [] bytestring
      puz <- withArray cchars (\ar -> puzLoad ar size)
 
-     --- Now get all the pointers we need into the internal puz structure
-     gridPtr <- puzGetGrid puz
-     solPtr <- puzGetSolution puz
-     titlePtr <- puzGetTitle puz
-     authPtr <- puzGetAuthor puz
-     copyPtr <- puzGetCopyright puz
-     notePtr <- puzGetNotes puz
-
-     clueCount <- puzGetClueCount puz
-     cluePtrs <- mapM (puzGetClue puz) [0..(clueCount-1)]
-
-     --- we use the pointers and the puz data to get everything we need 
-     --- to build a Puzzle
      width  <- puzGetWidth puz
      height <- puzGetHeight puz
+     let bdStr = boardStringOut $ width * height
 
-     let sz = width*height
-     gridsqs <- readBoard sz gridPtr
-     solutionsqs <- readBoard sz solPtr
-     -- these guys are in row-major order, so we need to flip
-     let numberFold :: (Int,Int,[((Int,Int),Square)]) -> Square ->
+     --- Now get all the raw strings we need from the internal puz structure
+     gridStr   <- puzGetGrid puz >>= bdStr
+     solStr    <- puzGetSolution puz >>= bdStr
+
+     title     <- puzGetTitle puz
+     author    <- puzGetAuthor puz
+     copyright <- puzGetCopyright puz
+     notes     <- puzGetNotes puz
+
+     hasRebus  <- puzHasRebus puz
+     rebusStr  <- if hasRebus then puzGetRebus puz >>= bdStr
+                              else return $ repeat (chr 0)
+     rebusTbl  <- if hasRebus then puzGetRtbl puz
+                              else return $ []
+
+     hasExtras <- puzHasExtras puz
+     extrasStr <- if hasExtras then puzGetExtras puz >>= bdStr
+                               else return $ repeat (chr 0)
+
+     clueCount <- puzGetClueCount puz
+     clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
+
+     --- we use these strings and the puz data to get everything we need 
+     --- to build a Puzzle
+     let gridsqs, solutionsqs :: [Square]
+         gridsqs     = readBoard True gridStr rebusStr rebusTbl extrasStr
+         solutionsqs = readBoard False solStr rebusStr rebusTbl extrasStr
+
+         -- these guys are in row-major order, so we need to flip
+         numberFold :: (Int,Int,[((Int,Int),Square)]) -> Square ->
                        (Int,Int,[((Int,Int),Square)])
          numberFold (x,y,l) sq = 
            let (x',y') = if x+1 == width then (0,y+1) else (x+1,y) in
            (x',y',(((x,y),sq):l))
-     let grid = array ((0,0),(width-1,height-1)) $
+
+         grid, solution :: Array (Int,Int) Square
+         grid = array ((0,0),(width-1,height-1)) $
                   (\(_,_,l) -> l) $ foldl' numberFold (0,0,[]) gridsqs
-     let solution = array ((0,0),(width-1,height-1)) $
+         solution = array ((0,0),(width-1,height-1)) $
                       (\(_,_,l) -> l) $ foldl' numberFold (0,0,[]) solutionsqs
-     
 
-     title <- readString titlePtr
-     author <- readString authPtr
-     copyright <- readString copyPtr
-     notes <- readString notePtr
-
-     clueStrs <- mapM readString cluePtrs
-     let clues = numberClues clueStrs grid
-
+         clues :: [(Int,Dir,String)]
+         clues = numberClues clueStrs grid
      return $
        Puzzle {width, height, grid, solution,
                title, author, copyright, notes,
