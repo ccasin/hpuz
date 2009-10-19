@@ -41,6 +41,20 @@ puzTypeIn = alwaysUseIn $ cIntConv $ fromEnum PuzTypeUnknown
 puzIn :: Puz -> (Ptr Puz -> IO b) -> IO b
 puzIn (Puz fp) = withForeignPtr fp
 
+stringIn :: String -> (Ptr CUChar -> IO b) -> IO b
+stringIn str =
+  let cuchars = map ((toEnum :: Int -> CUChar) . fromEnum) str in
+  withArray0 0 cuchars
+
+rtblIn :: [(String,Int)] -> (Ptr CUChar -> IO b) -> IO b
+rtblIn tbl = 
+  let chars = concatMap (\(s,i) -> let pad = if i < 10 then " " else "" in
+                                   pad ++ show i ++ ":" ++ s ++ ";")
+                        tbl
+  in
+    stringIn chars
+                                       
+                             
 -- OUT
 cerrToBool :: CInt -> Bool
 cerrToBool = (0 ==)
@@ -73,8 +87,6 @@ rtblOut ptr =
 
 {- puz struct creation, initialization -}
 
--- XXX I think we don't actually need puz_init because puz_load also mallocs
--- and accepts null
 {# fun puz_init as puzCreate
    {nullIn- `Ptr Puz'} -> `Puz' marshallPuz* #}
 
@@ -157,7 +169,7 @@ rtblOut ptr =
 
 {# fun puz_title_set as puzSetTitle
    { puzIn* `Puz'
-   , id `Ptr CUChar'
+   , stringIn* `String'
    } -> 
    `()'
  #}
@@ -169,7 +181,7 @@ rtblOut ptr =
 
 {# fun puz_author_set as puzSetAuthor
    { puzIn* `Puz'
-   , id `Ptr CUChar'
+   , stringIn* `String'
    } -> 
    `()'
  #}
@@ -181,7 +193,7 @@ rtblOut ptr =
 
 {# fun puz_copyright_set as puzSetCopyright
    { puzIn* `Puz'
-   , id `Ptr CUChar' 
+   , stringIn* `String'
    } -> 
    `()'
  #}
@@ -209,7 +221,7 @@ rtblOut ptr =
 {# fun puz_clue_set as puzSetClue
    { puzIn* `Puz'
    , `Int' 
-   , id `Ptr CUChar'
+   , stringIn* `String'
    } -> 
    `()'
  #}
@@ -221,7 +233,7 @@ rtblOut ptr =
 
 {# fun puz_notes_set as puzSetNotes
    { puzIn* `Puz'
-   , id `Ptr CUChar' } 
+   , stringIn* `String' } 
    -> 
    `()'
  #}
@@ -261,7 +273,7 @@ rtblOut ptr =
 {# fun puz_rtblstr_set as puzSetRtbl
    { puzIn* `Puz'
    , `Int'
-   , id `Ptr CUChar' }
+   , rtblIn* `[(String,Int)]' }
    ->
    `()'
  #}
