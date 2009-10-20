@@ -62,6 +62,9 @@ cerrToBool = (0 ==)
 cintToBool :: CInt -> Bool
 cintToBool = (1 ==)
 
+saveIntToBool :: CInt -> Bool
+saveIntToBool = (-1 /=)
+
 stringOut :: Ptr CUChar -> IO String
 stringOut ptr =
   do cuchars <- peekArray0 (0 :: CUChar) ptr
@@ -99,17 +102,31 @@ rtblOut ptr =
    `Puz' marshallPuz* 
  #}
 
+{# fun puz_save as puzSave
+   { puzIn* `Puz'
+   , puzTypeIn- `PuzType'
+   , id `Ptr CUChar'
+   , `Int'
+   } ->
+   `Bool' saveIntToBool 
+ #}
+
+{# fun puz_size as puzSize
+   { puzIn* `Puz' } -> `Int'
+ #}
+     
+
 {- check sum checking, generation -}
 {# fun puz_cksums_calc as puzCksumsCalc
-   { id `Ptr Puz' } -> `()' 
+   { puzIn* `Puz' } -> `()' 
  #}
 
 {# fun puz_cksums_check as puzCksumsCheck
-   { id `Ptr Puz' } -> `Bool' cerrToBool
+   { puzIn* `Puz' } -> `Bool' cerrToBool
  #}
 
 {# fun puz_cksums_commit as puzCksumsCommit
-   { id `Ptr Puz' } -> `()'
+   { puzIn* `Puz' } -> `()'
  #}
 
 {- accessors -}

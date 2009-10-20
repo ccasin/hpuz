@@ -49,6 +49,8 @@ data Puzzle =
           clues     :: [(Int,Dir,String)]}
   deriving (Show)
 
+type ErrMsg = String
+
 {- ------- Constants ------- -}
 blankChar,blackChar,extrasBlankChar :: CUChar
 blackChar = fromIntegral (fromEnum '.')
@@ -226,6 +228,8 @@ loadPuzzle fname =
      handle <- openFile fname ReadMode
      size <- liftM fromIntegral $ hFileSize handle
      bytestring <- hGetContents handle
+     hClose handle
+
      let cchars :: [CUChar]
          cchars = foldr' (\w cs -> (fromIntegral w) : cs) [] bytestring
      puz <- withArray cchars (\ar -> puzLoad ar size)
@@ -271,7 +275,7 @@ loadPuzzle fname =
                clues}
 
 
-savePuzzle :: String -> Puzzle -> IO ()
+savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
 savePuzzle fname (Puzzle {width, height, grid, solution,
                           title, author, notes, copyright,
                           clues}) =
@@ -318,7 +322,20 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
        Just (rtbl,rbd) -> do withArray rbd (puzSetRebus puz)
                              puzSetRtbl puz (length rtbl) rtbl
                              
+     puzCksumsCalc puz
+     puzCksumsCommit puz
+     cksumChk <- puzCksumsCheck puz
 
-     -- still must deal with check sums and write to file
-     return ()
+     if not cksumChk 
+       then return $ Just "Internal Error: Checksum calculation failed." 
+       else
+         do sz <- puzSize puz
+            allocaArray sz 
+              (\ ptr -> 
+                  do saveChk <- puzSave puz ptr sz
+                     if not saveChk 
+                       then return $ Just "Internal Error: puzSave failed."
+                       else do handle <- openFile fname WriteMode
+                               hPutBuf handle ptr sz
+                               return Nothing)
 
