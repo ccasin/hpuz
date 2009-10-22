@@ -1,9 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Codec.Game.Puz 
        (Style (Plain,Circle), Square (Black,Letter,Rebus), 
-        Dir (Across,Down), Puzzle (Puzzle),
+        Dir (Across,Down), Puzzle (Puzzle), Index,
         width,height,grid,solution,title,author,notes,copyright,clues,
-        loadPuzzle,savePuzzle)
+        numberGrid,loadPuzzle,savePuzzle)
 where
 
 import Codec.Game.Puz.Internal
@@ -24,29 +24,53 @@ import Control.Monad
 
 {- ------ Types ------- -}
 
+{-| The 'Style' type enumerates the possible styles of fillable squares.
+    Currently, there are only two: plain squares and circled squares. -}
 data Style = Plain | Circle
   deriving (Eq, Show)
 
-data Square = Black
-            | Letter (Maybe Char) Style
-            | Rebus (Maybe String) Style
+{-| The 'Square' type represents a square in a puzzle. -}
+data Square
+    -- | Black squares
+    = Black
+    -- | Standard letter squares, optionally filled in
+    | Letter (Maybe Char) Style
+    -- | Rebus squares, optionally filled in
+    | Rebus (Maybe String) Style
   deriving (Eq, Show)
 
 data Dir = Across | Down
   deriving (Eq, Show)
 
+type Index = (Int,Int)
 
+{-| The 'Puzzle' type represents a particular crossword.  The
+    crossword's dimensions are specified by 'width' and 'height'.
+
+    The contents of the puzzle are given by two arrays of 'Square's -
+    'grid' and 'solution'.  The board arrays are in row-major order
+    and are numbered from (0,0) to (width-1,height-1).  The 'grid'
+    board represents the current state of play, and as such its
+    squares may be partially or entirely filled in, correctly or
+    incorrectly.  The 'solution' board should have the same basic
+    layout as the 'grid' board (in terms of black vs letter squares),
+    and should be entirely filled in.
+
+    Various other pieces of data about the puzzle are given bu
+    'title', 'author', 'notes' and 'copyright', all 'String's.
+
+    The field 'clues' gives the puzzle's clues.  The numbers in this
+    array correspond to the numbering that would appear on the grid.
+    To reconstruct this information, see the 'numberGrid' function.
+ -}
 -- The board arrays are row-major and numbered from (0,0) to
 -- (width-1,height-1)
 data Puzzle =
-  Puzzle {width,height :: Int,
-          grid      :: Array (Int,Int) Square,
-          solution  :: Array (Int,Int) Square,
-          title     :: String,
-          author    :: String,
-          notes     :: String,
-          copyright :: String,
-          clues     :: [(Int,Dir,String)]}
+  Puzzle { width,height                  :: Int,
+           grid,solution                 :: Array Index Square,
+           title,author,notes,copyright  :: String,
+           clues                         :: [(Int,Dir,String)]
+          }
   deriving (Show)
 
 type ErrMsg = String
@@ -164,20 +188,20 @@ gridToRebus sqs =
 --
 -- The bool should be True if this is a game board and false if it is a
 -- solution board. 
-readBoard :: Bool -> Array (Int,Int) CUChar -> Array (Int,Int) CUChar 
-          -> [(Int,String)] -> Array (Int,Int) CUChar 
-          -> Array (Int,Int) Square
+readBoard :: Bool -> Array Index CUChar -> Array Index CUChar 
+          -> [(Int,String)] -> Array Index CUChar 
+          -> Array Index Square
 readBoard isGame bd rbs rtbl ext = 
     let convChar = charToSquare isGame rtbl in
       array (bounds bd) 
             (map (\(i,c) -> (i,convChar c (rbs ! i) (ext ! i)))
                  (assocs bd))
 
-boardCharsOut :: Int -> Int -> Ptr CUChar -> IO (Array (Int,Int) CUChar)
+boardCharsOut :: Int -> Int -> Ptr CUChar -> IO (Array Index CUChar)
 boardCharsOut width height ptr =
   let -- these guys are in row-major order, so we need to flip
-      numberFold :: (Int,Int,[((Int,Int),a)]) -> a->
-                    (Int,Int,[((Int,Int),a)])
+      numberFold :: (Int,Int,[(Index,a)]) -> a->
+                    (Int,Int,[(Index,a)])
       numberFold (x,y,l) sq = 
         let (x',y') = if x+1 == width then (0,y+1) else (x+1,y) in
           (x',y',(((x,y),sq):l))
@@ -187,14 +211,14 @@ boardCharsOut width height ptr =
      return $ array ((0,0),(width-1,height-1)) $
                 (\(_,_,l) -> l) $ foldl' numberFold (0,0,[]) cuchars
 
-numberClues :: [String] -> Array (Int,Int) Square -> [(Int,Dir,String)]
+numberClues :: [String] -> Array Index Square -> [(Int,Dir,String)]
 numberClues cls bd =
   zipWith (\(a,b) c -> (a,b,c)) (findclues 1 (0,0)) cls
   where
     (_,(xmax,ymax)) = bounds bd
 
     -- sq number -> position -> list of places clues are needed
-    findclues :: Int -> (Int,Int) -> [(Int,Dir)]
+    findclues :: Int -> Index -> [(Int,Dir)]
     findclues n (x,y) =
         if black then rec else
           case (asq,bsq) of
@@ -220,8 +244,50 @@ numberClues cls bd =
 
 {- ---- Exposed library ---- -}
 
--- XXX this should verify the checksums
+numberGrid :: Array Index Square -> Array Index (Maybe Int)
+numberGrid grid = 
+  array (bounds grid) bd_ass
+  where
+    indexCompare :: Index -> Index -> Ordering
+    indexCompare (i1,i2) (j1,j2) = case compare i2 j2 of
+                                     LT -> LT
+                                     GT -> GT
+                                     EQ -> compare i1 j1
 
+    ass :: [(Index,Square)]
+    ass = sortBy (\(i,_) (j,_) -> indexCompare i j) $ assocs grid
+
+    isEmpty :: Index -> Bool
+    isEmpty i = case lookup i ass of
+                  Nothing           -> True
+                  Just Black        -> True
+                  Just (Letter _ _) -> False
+                  Just (Rebus _ _)  -> False
+
+    folder :: (Int, [(Index, Maybe Int)]) -> 
+              (Index,Square) -> 
+              (Int, [(Index, Maybe Int)])
+    folder (ct,ns) (i@(ix,iy),sq) =
+      let up_e, left_e :: Bool
+          up_e   = isEmpty (ix,iy-1)
+          left_e = isEmpty (ix-1,iy)
+      in
+      case sq of 
+        Black -> (ct, (i,Nothing) : ns)
+        Letter _ _ -> 
+            if up_e || left_e 
+              then (ct+1, (i, Just ct) : ns)
+              else (ct  , (i, Nothing) : ns)
+        Rebus _ _  -> 
+            if up_e || left_e 
+              then (ct+1, (i, Just ct) : ns)
+              else (ct  , (i, Nothing) : ns)
+
+    bd_ass :: [(Index, Maybe Int)]
+    (_,bd_ass) = foldl folder (1,[]) ass
+
+
+-- XXX this should verify the checksums
 loadPuzzle :: String -> IO Puzzle
 loadPuzzle fname =
   do --- Start by getting internal puz representation
@@ -263,7 +329,7 @@ loadPuzzle fname =
 
      --- we use these strings and the puz data to get everything we need 
      --- to build a Puzzle
-     let grid, solution :: Array (Int,Int) Square
+     let grid, solution :: Array Index Square
          grid     = readBoard True gridChrs rebusChrs rebusTbl extraChrs
          solution = readBoard False solChrs rebusChrs rebusTbl extraChrs
 
@@ -282,9 +348,14 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
   let clueCount = length clues
       clueStrs  = map (\(_,_,s) -> s) (sortBy orderClues clues)
 
+      -- since these arrays are row-major but that's the wrong order for
+      -- libpuz, we flip the indices first, which gets us a list in the
+      -- right order
       gridSqs,solSqs :: [Square]
-      gridSqs = elems grid
-      solSqs  = elems solution
+      gridSqs = elems (ixmap ((0,0),(height-1,width-1)) 
+                             (\(a,b) -> (b,a)) grid)
+      solSqs  = elems (ixmap ((0,0),(height-1,width-1)) 
+                             (\(a,b) -> (b,a)) solution)
 
       userBoard,solBoard :: [CUChar]
       userBoard   = map squareToBoardChar gridSqs
@@ -330,7 +401,7 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
        then return $ Just "Internal Error: Checksum calculation failed." 
        else
          do sz <- puzSize puz
-            allocaArray sz 
+            allocaArray sz
               (\ ptr -> 
                   do saveChk <- puzSave puz ptr sz
                      if not saveChk 

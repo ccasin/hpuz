@@ -36,7 +36,7 @@ nullIn :: (Ptr a -> IO b) -> IO b
 nullIn = alwaysUseIn nullPtr
 
 puzTypeIn :: (CInt -> IO b) -> IO b
-puzTypeIn = alwaysUseIn $ cIntConv $ fromEnum PuzTypeUnknown
+puzTypeIn = alwaysUseIn $ cIntConv $ fromEnum PuzTypeBinary
 
 puzIn :: Puz -> (Ptr Puz -> IO b) -> IO b
 puzIn (Puz fp) = withForeignPtr fp
