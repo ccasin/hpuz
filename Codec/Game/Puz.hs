@@ -336,9 +336,6 @@ loadPuzzle fname =
          clues :: [(Int,Dir,String)]
          clues = numberClues clueStrs grid
      
-     print grid
-     print solution
-
      return $
        Puzzle {width, height, grid, solution,
                title, author, copyright, notes,
@@ -387,10 +384,6 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
 
      withArray userBoard (puzSetGrid puz)
      withArray solBoard (puzSetSolution puz)
-
---     print gridSqs
---     print solSqs
---     print extrasBoard
 
      case extrasBoard of
        Nothing -> return ()
