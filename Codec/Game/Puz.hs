@@ -125,7 +125,7 @@ charToSquare isGame rtbl sq rbs ext =
                         in Rebus str' style
                     else Rebus (Just str) style
         Nothing -> if sq == blankChar then Letter Nothing style
-                     else Letter (Just $ cucharToChar sq) Plain
+                     else Letter (Just $ cucharToChar sq) style
   where
     style = case charToStyle ext of
               Just s  -> s
@@ -335,6 +335,10 @@ loadPuzzle fname =
 
          clues :: [(Int,Dir,String)]
          clues = numberClues clueStrs grid
+     
+     print grid
+     print solution
+
      return $
        Puzzle {width, height, grid, solution,
                title, author, copyright, notes,
@@ -383,6 +387,10 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
 
      withArray userBoard (puzSetGrid puz)
      withArray solBoard (puzSetSolution puz)
+
+--     print gridSqs
+--     print solSqs
+--     print extrasBoard
 
      case extrasBoard of
        Nothing -> return ()
