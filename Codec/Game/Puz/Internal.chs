@@ -57,8 +57,8 @@ stringIn str =
 
 rtblIn :: [(String,Int)] -> (Ptr CUChar -> IO b) -> IO b
 rtblIn tbl = 
-  let chars = concatMap (\(s,i) -> let pad = if i < 10 then " " else "" in
-                                   pad ++ show i ++ ":" ++ s ++ ";")
+  let chars = concatMap (\(s,i) -> let pad = if (i+1) < 10 then " " else "" in
+                                   pad ++ show (i+1) ++ ":" ++ s ++ ";")
                         tbl
   in
     stringIn chars
@@ -85,7 +85,7 @@ rtblParser =
                ds <- many1 digit
                char ':'
                reb <- many1 alphaNum
-               return (read ds, reb)) 
+               return ((read ds) + 1, reb)) 
            (char ';')
 
 rtblOut :: Ptr CUChar -> IO [(Int,String)]

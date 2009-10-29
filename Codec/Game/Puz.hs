@@ -344,7 +344,7 @@ loadPuzzle fname =
              
              clueCount <- puzGetClueCount puz
              clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
-             
+
              -- we use these strings and the puz data to get everything we
              -- need to build a Puzzle
              let grid, solution :: Array Index Square
@@ -360,7 +360,6 @@ loadPuzzle fname =
                Puzzle {width, height, grid, solution,
                        title, author, copyright, notes,
                        clues}
-
 
 savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
 savePuzzle fname (Puzzle {width, height, grid, solution,
