@@ -23,9 +23,18 @@ import Text.ParserCombinators.Parsec
 
 
 -- XXX is this really freeing the right thing?  How could I tell?
+marshallPuzMaybe :: Ptr Puz -> IO (Maybe Puz)
+marshallPuzMaybe pp = 
+  if pp == nullPtr 
+    then return Nothing
+    else do fp <- newForeignPtr finalizerFree pp
+            return $ Just $ Puz fp
+
 marshallPuz :: Ptr Puz -> IO Puz
 marshallPuz pp = do fp <- newForeignPtr finalizerFree pp
                     return $ Puz fp
+
+
 
 -- custom marshallers
 -- IN
@@ -99,7 +108,7 @@ rtblOut ptr =
    , id `Ptr CUChar'
    , `Int'
    } ->
-   `Puz' marshallPuz* 
+   `Maybe Puz' marshallPuzMaybe* 
  #}
 
 {# fun puz_save as puzSave

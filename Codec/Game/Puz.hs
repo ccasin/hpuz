@@ -9,6 +9,7 @@ where
 import Codec.Game.Puz.Internal
 
 import System.IO hiding (hGetContents)
+import System.IO.Error
 
 import Foreign.Ptr
 import Foreign.C
@@ -63,8 +64,6 @@ type Index = (Int,Int)
     array correspond to the numbering that would appear on the grid.
     To reconstruct this information, see the 'numberGrid' function.
  -}
--- The board arrays are row-major and numbered from (0,0) to
--- (width-1,height-1)
 data Puzzle =
   Puzzle { width,height                  :: Int,
            grid,solution                 :: Array Index Square,
@@ -287,59 +286,80 @@ numberGrid grid =
     (_,bd_ass) = foldl folder (1,[]) ass
 
 
--- XXX this should verify the checksums
-loadPuzzle :: String -> IO Puzzle
+loadPuzzle :: String -> IO (Either Puzzle ErrMsg)
 loadPuzzle fname =
   do --- Start by getting internal puz representation
-     handle <- openFile fname ReadMode
-     size <- liftM fromIntegral $ hFileSize handle
-     bytestring <- hGetContents handle
-     hClose handle
-
-     let cchars :: [CUChar]
-         cchars = foldr' (\w cs -> (fromIntegral w) : cs) [] bytestring
-     puz <- withArray cchars (\ar -> puzLoad ar size)
-
-     width  <- puzGetWidth puz
-     height <- puzGetHeight puz
-     let bdChrs = boardCharsOut width height
-         emptyBd = listArray ((0,0),(width-1,height-1)) (repeat $ toEnum 0)
-
-     --- Now get all the raw strings we need from the internal puz structure
-     gridChrs  <- puzGetGrid puz >>= bdChrs
-     solChrs   <- puzGetSolution puz >>= bdChrs
-
-     title     <- puzGetTitle puz
-     author    <- puzGetAuthor puz
-     copyright <- puzGetCopyright puz
-     notes     <- puzGetNotes puz
-
-     hasRebus  <- puzHasRebus puz
-     rebusChrs <- if hasRebus then puzGetRebus puz >>= bdChrs
-                              else return emptyBd
-     rebusTbl  <- if hasRebus then puzGetRtbl puz
-                              else return []
-
-     hasExtras <- puzHasExtras puz
-     extraChrs <- if hasExtras then puzGetExtras puz >>= bdChrs
-                               else return emptyBd
-
-     clueCount <- puzGetClueCount puz
-     clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
-
-     --- we use these strings and the puz data to get everything we need 
-     --- to build a Puzzle
-     let grid, solution :: Array Index Square
-         grid     = readBoard True gridChrs rebusChrs rebusTbl extraChrs
-         solution = readBoard False solChrs rebusChrs rebusTbl extraChrs
-
-         clues :: [(Int,Dir,String)]
-         clues = numberClues clueStrs grid
-     
-     return $
-       Puzzle {width, height, grid, solution,
-               title, author, copyright, notes,
-               clues}
+     ehandle <- try (openFile fname ReadMode)
+     case ehandle of
+       Left err -> 
+         if isDoesNotExistError err
+           then return $ Right $ "File " ++ fname ++ " does not exist."
+           else 
+             if isPermissionError err
+               then
+                 return $ Right $ "Cannot access file " ++ fname ++ 
+                                  ". (permissions error)"
+               else return $ Right $ "Cannot open " ++ fname
+       Right handle -> do 
+         size <- liftM fromIntegral $ hFileSize handle
+         bytestring <- hGetContents handle
+         hClose handle
+         
+         let cchars :: [CUChar]
+             cchars = foldr' (\w cs -> (fromIntegral w) : cs) [] bytestring
+         mpuz <- withArray cchars (\ar -> puzLoad ar size)
+         case mpuz of
+           Nothing -> return $ Right "Ill-formed puzzle"
+           Just puz -> 
+             puzCksumsCheck puz >>= 
+               \v -> if not v 
+                       then return $ 
+                               Right "Ill-formed puzzle: bad checksums"
+                       else do
+             width  <- puzGetWidth puz
+             height <- puzGetHeight puz
+             let bdChrs = boardCharsOut width height
+                 emptyBd = listArray ((0,0),(width-1,height-1)) 
+                                     (repeat $ toEnum 0)
+             
+             -- Now get all the raw strings we need from the internal 
+             -- puz structure
+             gridChrs  <- puzGetGrid puz >>= bdChrs
+             solChrs   <- puzGetSolution puz >>= bdChrs
+             
+             title     <- puzGetTitle puz
+             author    <- puzGetAuthor puz
+             copyright <- puzGetCopyright puz
+             notes     <- puzGetNotes puz
+             
+             hasRebus  <- puzHasRebus puz
+             rebusChrs <- if hasRebus then puzGetRebus puz >>= bdChrs
+                                      else return emptyBd
+             rebusTbl  <- if hasRebus then puzGetRtbl puz
+                                      else return []
+             
+             hasExtras <- puzHasExtras puz
+             extraChrs <- if hasExtras then puzGetExtras puz >>= bdChrs
+                                       else return emptyBd
+             
+             clueCount <- puzGetClueCount puz
+             clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
+             
+             -- we use these strings and the puz data to get everything we
+             -- need to build a Puzzle
+             let grid, solution :: Array Index Square
+                 grid     = readBoard True gridChrs rebusChrs rebusTbl 
+                                      extraChrs
+                 solution = readBoard False solChrs rebusChrs rebusTbl 
+                                      extraChrs
+             
+                 clues :: [(Int,Dir,String)]
+                 clues = numberClues clueStrs grid
+             
+             return $ Left $
+               Puzzle {width, height, grid, solution,
+                       title, author, copyright, notes,
+                       clues}
 
 
 savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
