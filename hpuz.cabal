@@ -7,6 +7,7 @@ License-file:        LICENSE
 Copyright:           Copyright (c) Chris Casinghino 2009
 Author:              Chris Casinghino
 Maintainer:          chris.casinghino@gmail.com
+Category:            Crosswords
 
 Stability:           Experimental
 Synopsis:            Haskell bindings for libpuz
@@ -23,4 +24,4 @@ Library
   Other-modules:     Codec.Game.Puz.Internal
   build-tools:       c2hs >= 0.16.0
   extra-libraries:   puz
-  ghc-options:       -Wall -O1
+  ghc-options:       -Wall
