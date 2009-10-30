@@ -37,7 +37,7 @@ data Square
     -- | Standard letter squares, optionally filled in
     | Letter (Maybe Char) Style
     -- | Rebus squares, optionally filled in
-    | Rebus (Maybe String) Style
+    | Rebus String Style
   deriving (Eq, Show)
 
 data Dir = Across | Down
@@ -119,10 +119,10 @@ charToSquare isGame rtbl sq rbs ext =
     else
       case rebus of
         Just str -> if isGame then 
-                        let str' = if sq == blankChar then Nothing
-                                      else Just [cucharToChar sq]
+                        let str' = if sq == blankChar then []
+                                   else [cucharToChar sq]
                         in Rebus str' style
-                    else Rebus (Just str) style
+                    else Rebus str style
         Nothing -> if sq == blankChar then Letter Nothing style
                      else Letter (Just $ cucharToChar sq) style
   where
@@ -143,9 +143,8 @@ squareToBoardChar (Letter m _) = case m of
                                    Nothing -> blankChar
                                    Just c  -> charToCUChar c
 squareToBoardChar (Rebus m _)  = case m of
-                                   Nothing    -> blankChar
-                                   Just []    -> blankChar
-                                   Just (c:_) -> charToCUChar c
+                                   []    -> blankChar
+                                   (c:_) -> charToCUChar c
 
 squareToExtrasChar :: Square -> CUChar
 squareToExtrasChar Black        = styleToChar Plain
@@ -170,13 +169,9 @@ gridToRebus sqs =
           case sq of
             Black      -> (n,rtbl,extrasBlankChar:is)
             Letter _ _ -> (n,rtbl,extrasBlankChar:is)
-            Rebus ms _  -> 
-                case ms of 
-                  Nothing -> (n,rtbl,extrasBlankChar:is) 
-                    -- XXX is this blank char really the right choice?
-                  Just s -> case lookup s rtbl of
-                              Nothing -> (n+1, (s,n):rtbl, (toEnum n):is)
-                              Just n' -> (n, rtbl, (toEnum n'):is)
+            Rebus s _  -> case lookup s rtbl of
+                            Nothing -> (n+1, (s,n):rtbl, (toEnum n):is)
+                            Just n' -> (n, rtbl, (toEnum n'):is)
             
         
 
