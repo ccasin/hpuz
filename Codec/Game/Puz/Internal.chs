@@ -37,6 +37,12 @@ marshallPuz pp = do fp <- newForeignPtr finalizerFree pp
 
 
 -- custom marshallers
+
+-- shouldn't this be built in?
+boolToCInt :: Bool -> CInt
+boolToCInt True = 1
+boolToCInt False = 0
+
 -- IN
 alwaysUseIn :: a -> (a -> b) -> b
 alwaysUseIn a f = f a
@@ -62,8 +68,7 @@ rtblIn tbl =
                         tbl
   in
     stringIn chars
-                                       
-                             
+
 -- OUT
 cerrToBool :: CInt -> Bool
 cerrToBool = (0 ==)
@@ -304,6 +309,27 @@ rtblOut ptr =
    `()'
  #}
 
+
+{# fun puz_has_timer as puzHasTimer
+   { puzIn* `Puz' } -> `Bool' cintToBool
+ #}
+
+-- XXX these next two ignore errors
+{# fun puz_timer_elapsed_get as puzGetTimerElapsed
+   { puzIn* `Puz' } -> `Int'
+ #}
+
+{# fun puz_timer_stopped_get as puzGetTimerStopped
+   { puzIn* `Puz' } -> `Bool' cintToBool
+ #}
+
+{# fun puz_timer_set as puzSetTimer
+   { puzIn* `Puz'
+   , `Int'
+   , boolToCInt `Bool'}
+   ->
+   `()'
+ #}
 
 
 {# fun puz_has_extras as puzHasExtras

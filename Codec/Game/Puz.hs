@@ -2,7 +2,7 @@
 module Codec.Game.Puz 
        (Style (Plain,Circle), Square (Black,Letter,Rebus), 
         Dir (Across,Down), Puzzle (Puzzle), Index,
-        width,height,grid,solution,title,author,notes,copyright,clues,
+        width,height,grid,solution,title,author,notes,copyright,timer,clues,
         numberGrid,loadPuzzle,savePuzzle)
 where
 
@@ -60,6 +60,10 @@ type Index = (Int,Int)
     Various other pieces of data about the puzzle are given bu
     'title', 'author', 'notes' and 'copyright', all 'String's.
 
+    There is an optional "timer", which is a number of seconds
+    elapsed and a bool that is true if the timer is stopped and
+    false otherwise.
+
     The field 'clues' gives the puzzle's clues.  The numbers in this
     array correspond to the numbering that would appear on the grid.
     To reconstruct this information, see the 'numberGrid' function.
@@ -68,6 +72,7 @@ data Puzzle =
   Puzzle { width,height                  :: Int,
            grid,solution                 :: Array Index Square,
            title,author,notes,copyright  :: String,
+           timer                         :: Maybe (Int,Bool),
            clues                         :: [(Int,Dir,String)]
           }
   deriving (Show)
@@ -326,6 +331,13 @@ loadPuzzle fname =
              author    <- puzGetAuthor puz
              copyright <- puzGetCopyright puz
              notes     <- puzGetNotes puz
+
+             hasTimer  <- puzHasTimer puz
+             timer    <- if hasTimer 
+                           then liftM2 (\x y -> Just (x,y)) 
+                                  (puzGetTimerElapsed puz) 
+                                  (puzGetTimerStopped puz)
+                           else return Nothing
              
              hasRebus  <- puzHasRebus puz
              rebusChrs <- if hasRebus then puzGetRebus puz >>= bdChrs
@@ -353,12 +365,12 @@ loadPuzzle fname =
              
              return $ Left $
                Puzzle {width, height, grid, solution,
-                       title, author, copyright, notes,
+                       title, author, copyright, notes, timer,
                        clues}
 
 savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
 savePuzzle fname (Puzzle {width, height, grid, solution,
-                          title, author, notes, copyright,
+                          title, author, notes, copyright, timer,
                           clues}) =
   let clueCount = length clues
       clueStrs  = map (\(_,_,s) -> s) (sortBy orderClues clues)
@@ -392,6 +404,10 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
      puzSetAuthor    puz author
      puzSetNotes     puz notes
      puzSetCopyright puz copyright
+
+     case timer of
+       Nothing -> return ()
+       Just (e,s) -> puzSetTimer puz e s
 
      puzSetClueCount puz clueCount
      mapM (\(n,c) -> puzSetClue puz n c) (zip [0..] clueStrs)

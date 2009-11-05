@@ -1,5 +1,5 @@
 Name:                hpuz
-Version:             0.0.1.1
+Version:             0.0.2
 Cabal-Version:       >=1.2
 Build-Type:          Simple
 License:             OtherLicense
@@ -23,5 +23,10 @@ Library
   Exposed-modules:   Codec.Game.Puz
   Other-modules:     Codec.Game.Puz.Internal
   build-tools:       c2hs >= 0.16.0
-  extra-libraries:   puz
+  include-dirs:      contrib/libpuz/include
+  c-sources:         contrib/libpuz/src/cksum.c,
+                     contrib/libpuz/src/load.c,
+                     contrib/libpuz/src/save.c,
+                     contrib/libpuz/src/puzzle.c
+--  extra-libraries:   puz
   ghc-options:       -Wall

@@ -1,0 +1,20 @@
+libpuz -- A PUZ crossword file library
+Copyright (c) 2006 Josh Myer <josh@joshisanerd.com>
+
+libpuz is a library which allows you to write software which can read
+and write the binary PUZ file format, and can read the textual format.
+It is intended for programmers to use, not for normal users.
+
+This is the initial version of libpuz, warts and all.  For now, it has
+a pretty complete (if rudimentary) implementation of the binary file
+format.  All of the crucial checksum fields have been worked out, so
+you can interoperate with commercial crossword software for basic
+crosswords.  All advanced features are currently unimplemented (in
+fact: they're mostly unknown).
+
+The utils/ directory contains readpuz.c, a sample puzzle reader and
+writer.  It can be used to read any PUZ file, and also to compile the
+text format down to binary form.  It uses almost the entire read API;
+I don't have a good PUZ writing example at the moment.
+
+I welcome patches, constructive criticism, or general feedback.
