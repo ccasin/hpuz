@@ -439,5 +439,6 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
                        then return $ Just "Internal Error: puzSave failed."
                        else do handle <- openFile fname WriteMode
                                hPutBuf handle ptr sz
+                               hClose handle
                                return Nothing)
 
