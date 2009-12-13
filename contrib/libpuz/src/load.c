@@ -300,7 +300,7 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
   
         // load the rebus table from its string representation
         if (rbssum != 0) {
-          puz_rtblstr_set(puz, rtbl_strsz, base + i);
+          puz_rtblstr_set(puz, base + i);
         }
         i += rtbl_strsz;
   

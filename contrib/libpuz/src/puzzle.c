@@ -582,17 +582,10 @@ int puz_rebus_count_get(struct puzzle_t *puz) {
  * @puz: a pointer to the struct puzzle_t to write to (required)
  * @val: the (positive) value to set rtbl_sz to (required)
  * 
- * This function can only be used to set the number of clues for a
- * puzzle with a rebus table.  You must call puz_rebus_set() before
- * calling this function.
- *
  * returns -1 on error, 0 on success.
  */
 int puz_rebus_count_set(struct puzzle_t *puz, int val) {
   if(NULL == puz || 0 > val)
-    return -1;
-
-  if(!puz_has_rebus(puz))
     return -1;
 
   puz->rtbl = (unsigned char **)malloc(val * sizeof(unsigned char *));
@@ -686,12 +679,11 @@ unsigned char * puz_rtblstr_get(struct puzzle_t *puz) {
  * puz_rtblstr_set -- set the rebus table as a single string
  * 
  * @puz: a pointer to the struct puzzle_t to read from (required)
- * @rtbl_strsz: size of the rebus table as a string (required)
  * @val: the rebus table as a string (required)
  *
  * Returns NULL on error, well-indexed rebus table on success
  */
-unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, int rtbl_strsz, unsigned char * val) {
+unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, unsigned char * val) {
   int i, sz;
   unsigned char *start;
   unsigned char *end;
@@ -699,10 +691,8 @@ unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, int rtbl_strsz, unsigned 
   if (NULL == puz)
     return NULL;
 
-  // XXX should have rtbl_strsz == Sstrlen(val)
-
   sz = 0;
-  for (i = 0; i < rtbl_strsz; i++) {
+  for (i = 0; i < Sstrlen(val); i++) {
     if (';' == val[i])
       sz += 1;
   }
@@ -721,7 +711,7 @@ unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, int rtbl_strsz, unsigned 
 
     puz->rtbl[i] = (unsigned char*) malloc((end - start) + 1);
     Sstrncpy(puz->rtbl[i],start,end-start);
-    (puz->rtbl[i])[1+end-start] = 0;
+    (puz->rtbl[i])[end-start] = 0;
     start = end+1;
   }
 

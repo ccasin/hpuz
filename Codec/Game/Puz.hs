@@ -175,8 +175,8 @@ gridToRebus sqs =
             Black      -> (n,rtbl,extrasBlankChar:is)
             Letter _ _ -> (n,rtbl,extrasBlankChar:is)
             Rebus s _  -> case lookup s rtbl of
-                            Nothing -> (n+1, (s,n):rtbl, (toEnum n):is)
-                            Just n' -> (n, rtbl, (toEnum n'):is)
+                            Nothing -> (n+1, (s,n):rtbl, (toEnum (n+1)):is)
+                            Just n' -> (n, rtbl, (toEnum (n'+1)):is)
             
         
 
@@ -422,7 +422,7 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
      case rebusInfo of
        Nothing -> return ()
        Just (rtbl,rbd) -> do withArray rbd (puzSetRebus puz)
-                             puzSetRtbl puz (length rtbl) rtbl
+                             puzSetRtbl puz rtbl
                              
      puzCksumsCalc puz
      puzCksumsCommit puz

@@ -63,8 +63,8 @@ stringIn str =
 
 rtblIn :: [(String,Int)] -> (Ptr CUChar -> IO b) -> IO b
 rtblIn tbl = 
-  let chars = concatMap (\(s,i) -> let pad = if (i+1) < 10 then " " else "" in
-                                   pad ++ show (i+1) ++ ":" ++ s ++ ";")
+  let chars = concatMap (\(s,i) -> let pad = if i < 10 then " " else "" in
+                                   pad ++ show i ++ ":" ++ s ++ ";")
                         tbl
   in
     stringIn chars
@@ -303,7 +303,6 @@ rtblOut ptr =
      
 {# fun puz_rtblstr_set as puzSetRtbl
    { puzIn* `Puz'
-   , `Int'
    , rtblIn* `[(String,Int)]' }
    ->
    `()'

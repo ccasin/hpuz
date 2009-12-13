@@ -208,7 +208,7 @@ unsigned char * puz_rtbl_get(struct puzzle_t *puz, int n);
 unsigned char * puz_rtbl_set(struct puzzle_t *puz, int n, unsigned char * val);
 
 unsigned char * puz_rtblstr_get(struct puzzle_t *puz);
-unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, int rtbl_strsz, unsigned char * val);
+unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, unsigned char * val);
 
 int puz_has_timer(struct puzzle_t *puz);
 int puz_timer_elapsed_get(struct puzzle_t *puz);
