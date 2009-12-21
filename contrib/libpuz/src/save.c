@@ -71,7 +71,7 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
   w_le_16(base+i, puz->header.noise_1c);
   i += 2;
 
-  w_le_16(base+i, puz->header.x_unk_1e);
+  w_le_16(base+i, puz->header.scrambled_cksum);
   i += 2;
 
   w_le_16(base+i, puz->header.noise_20);
@@ -95,7 +95,7 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
   i += 2;
   w_le_16(base+i, puz->header.x_unk_30);
   i += 2;
-  w_le_16(base+i, puz->header.x_unk_32);
+  w_le_16(base+i, puz->header.scrambled_tag);
   i += 2;
 
   puz_a = puz->header.width * puz->header.height;

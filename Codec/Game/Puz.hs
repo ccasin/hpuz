@@ -2,8 +2,9 @@
 module Codec.Game.Puz 
        (Style (Plain,Circle), Square (Black,Letter,Rebus), 
         Dir (Across,Down), Puzzle (Puzzle), Index,
-        width,height,grid,solution,title,author,notes,copyright,timer,clues,
-        numberGrid,loadPuzzle,savePuzzle)
+        width,height,grid,solution,title,author,notes,
+        copyright,timer,clues,locked,
+        numberGrid,loadPuzzle,savePuzzle,stringCksum)
 where
 
 import Codec.Game.Puz.Internal
@@ -73,7 +74,8 @@ data Puzzle =
            grid,solution                 :: Array Index Square,
            title,author,notes,copyright  :: String,
            timer                         :: Maybe (Int,Bool),
-           clues                         :: [(Int,Dir,String)]
+           clues                         :: [(Int,Dir,String)],
+           locked                        :: Maybe CUShort
           }
   deriving (Show)
 
@@ -352,6 +354,10 @@ loadPuzzle fname =
              clueCount <- puzGetClueCount puz
              clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
 
+             isScrambled <- puzIsLockedGet puz
+             locked <- if isScrambled then liftM Just $ puzLockedCksumGet puz
+                                      else return Nothing
+
              -- we use these strings and the puz data to get everything we
              -- need to build a Puzzle
              let grid, solution :: Array Index Square
@@ -366,12 +372,12 @@ loadPuzzle fname =
              return $ Left $
                Puzzle {width, height, grid, solution,
                        title, author, copyright, notes, timer,
-                       clues}
+                       clues, locked}
 
 savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
 savePuzzle fname (Puzzle {width, height, grid, solution,
                           title, author, notes, copyright, timer,
-                          clues}) =
+                          clues, locked}) =
   let clueCount = length clues
       clueStrs  = map (\(_,_,s) -> s) (sortBy orderClues clues)
 
@@ -423,6 +429,10 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
        Nothing -> return ()
        Just (rtbl,rbd) -> do withArray rbd (puzSetRebus puz)
                              puzSetRtbl puz rtbl
+
+     case locked of
+       Nothing -> return ()
+       Just cksum -> puzLockSet puz cksum
                              
      puzCksumsCalc puz
      puzCksumsCommit puz
@@ -442,3 +452,6 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
                                hClose handle
                                return Nothing)
 
+
+stringCksum :: String -> IO CUShort
+stringCksum s = puzCksumString s (length s)

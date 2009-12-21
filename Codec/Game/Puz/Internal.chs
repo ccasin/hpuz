@@ -53,6 +53,9 @@ nullIn = alwaysUseIn nullPtr
 puzTypeIn :: (CInt -> IO b) -> IO b
 puzTypeIn = alwaysUseIn $ cIntConv $ fromEnum PuzTypeBinary
 
+zeroShortIn :: (CUShort -> IO b) -> IO b
+zeroShortIn = alwaysUseIn $ fromIntegral 0x0000
+
 puzIn :: Puz -> (Ptr Puz -> IO b) -> IO b
 puzIn (Puz fp) = withForeignPtr fp
 
@@ -74,7 +77,7 @@ cerrToBool :: CInt -> Bool
 cerrToBool = (0 ==)
 
 cintToBool :: CInt -> Bool
-cintToBool = (1 ==)
+cintToBool = (0 /=)
 
 saveIntToBool :: CInt -> Bool
 saveIntToBool = (-1 /=)
@@ -346,6 +349,29 @@ rtblOut ptr =
    `()'
  #}
 
+
+{# fun puz_is_locked_get as puzIsLockedGet
+   { puzIn* `Puz' } -> `Bool' cintToBool
+ #}
+
+{# fun puz_locked_cksum_get as puzLockedCksumGet
+   { puzIn* `Puz' } -> `CUShort' id
+ #}
+
+{# fun puz_lock_set as puzLockSet
+   { puzIn* `Puz'
+   , id `CUShort' }
+   ->
+   `()'
+ #}
+
+{# fun puz_cksum_region as puzCksumString
+   { stringIn* `String'
+   , `Int'
+   , zeroShortIn- `CUShort' }
+   ->
+   `CUShort' id
+ #}
 
 ------
 ------ C2HS stuff - why isn't there a C2HS module

@@ -13,7 +13,6 @@
 
 #include <puz.h>
 
-static unsigned short cksum_region(unsigned char *base, int len, unsigned short cksum);
 static unsigned short puz_cksum_cib(struct puzzle_t *puz);
 static unsigned short puz_cksum(struct puzzle_t *puz, unsigned short cksum);
 static unsigned short puz_cksum2(struct puzzle_t *puz, unsigned short cksum);
@@ -23,19 +22,18 @@ static void magic_gen_14(unsigned char *dest, unsigned short *sums);
 static unsigned short rtbl_gen(struct puzzle_t *puz);
 
 /**
- * cksum_region - Checksum a region using PUZ's rotate-and-sum
+ * puz_cksum_region - Checksum a region using PUZ's rotate-and-sum
  *
  * @base: pointer to the memory region to checksum
  * @len: length to run the checksum over
  * @cksum: the initial value of the checksum
  *
- * This is an internal function.
- *
  * This is used to run the PUZ checksum over chunks of memory.
  *
  * Return Value: it returns the new checksum value.
  */
-static unsigned short cksum_region(unsigned char *base, int len, unsigned short cksum) {
+unsigned short puz_cksum_region(unsigned char *base, int len,
+                                unsigned short cksum) {
   int i;
 
   for(i = 0; i < len; i++) {
@@ -54,7 +52,6 @@ static unsigned short cksum_region(unsigned char *base, int len, unsigned short 
   return cksum;
 }
 
-
 /**
  * puz_cksum_cib - Calculate the CIB Checksum for a puzzle
  *
@@ -67,7 +64,7 @@ static unsigned short cksum_region(unsigned char *base, int len, unsigned short 
 static unsigned short puz_cksum_cib(struct puzzle_t *puz) {
   unsigned short cksum;
   // First checksum header info
-  cksum = cksum_region(puz->cib, 8, 0);
+  cksum = puz_cksum_region(puz->cib, 8, 0);
   
   return cksum;
 }
@@ -107,16 +104,16 @@ unsigned short puz_cksum(struct puzzle_t *puz, unsigned short cksum) {
 
 #if CKSUM_PIECEWISE
   // checksum  solutions
-  cksum = cksum_region(puz->solution, puz_a, cksum);
+  cksum = puz_cksum_region(puz->solution, puz_a, cksum);
   // Next checksum grid
-  cksum = cksum_region(puz->grid, puz_a, cksum);
+  cksum = puz_cksum_region(puz->grid, puz_a, cksum);
   
   // title string w/NUL
-  cksum = cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
+  cksum = puz_cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
   // author string w/NUL
-  cksum = cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
+  cksum = puz_cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
   // copyright string w/NUL
-  cksum = cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
+  cksum = puz_cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
 #else
   // find the beginning of the first clue
   p = puz->base + 0x2c + puz_a + puz_a;
@@ -133,15 +130,15 @@ unsigned short puz_cksum(struct puzzle_t *puz, unsigned short cksum) {
   i = Sstrlen(p);
   p += i + 1;
 
-  cksum = cksum_region((puz->base)+0x2c+0x08, (p - puz->base) - 0x2c, cksum);
+  cksum = puz_cksum_region((puz->base)+0x2c+0x08, (p - puz->base) - 0x2c, cksum);
   
 #endif
   // clue strings
   for(i = 0; i < puz->header.clue_count; i++)
-    cksum = cksum_region(puz->clues[i], Sstrlen(puz->clues[i]), cksum);
+    cksum = puz_cksum_region(puz->clues[i], Sstrlen(puz->clues[i]), cksum);
   // notes string w/NUL
   if (Sstrlen(puz->notes) > 0) {
-    cksum = cksum_region(puz->notes, Sstrlen(puz->notes)+1, cksum);
+    cksum = puz_cksum_region(puz->notes, Sstrlen(puz->notes)+1, cksum);
   }
 
   return cksum;
@@ -173,11 +170,11 @@ unsigned short puz_cksum2(struct puzzle_t *puz, unsigned short cksum) {
 #define CKSUM_PIECEWISE 1
 #if CKSUM_PIECEWISE
   // title string w/NUL
-  cksum = cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
+  cksum = puz_cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
   // author string w/NUL
-  cksum = cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
+  cksum = puz_cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
   // copyright string w/NUL
-  cksum = cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
+  cksum = puz_cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
 #else
   int puz_a = puz->header.width*puz->header.height;
   char *p;
@@ -197,15 +194,15 @@ unsigned short puz_cksum2(struct puzzle_t *puz, unsigned short cksum) {
   i = Sstrlen(p);
   p += i + 1;
 
-  cksum = cksum_region((puz->base)+0x2c, (p - puz->base) - 0x2c, cksum);
+  cksum = puz_cksum_region((puz->base)+0x2c, (p - puz->base) - 0x2c, cksum);
   
 #endif
   // clue strings
   for(i = 0; i < puz->header.clue_count; i++)
-    cksum = cksum_region(puz->clues[i], Sstrlen(puz->clues[i]), cksum);
+    cksum = puz_cksum_region(puz->clues[i], Sstrlen(puz->clues[i]), cksum);
   // notes string w/NUL
   if (Sstrlen(puz->notes) > 0) {
-    cksum = cksum_region(puz->notes, Sstrlen(puz->notes)+1, cksum);
+    cksum = puz_cksum_region(puz->notes, Sstrlen(puz->notes)+1, cksum);
   }
 
   return cksum;
@@ -224,8 +221,8 @@ unsigned short puz_cksum2(struct puzzle_t *puz, unsigned short cksum) {
  *
  * The checksums to put in sums are:
  * 0. The CIB sum (from puz_cksum_cib(puz))
- * 1. The solution sum (cksum_region(puz->solution, sol_len, 0x0000))
- * 2. The grid sum (cksum_region(puz->grid, grid_len, 0x0000))
+ * 1. The solution sum (puz_cksum_region(puz->solution, sol_len, 0x0000))
+ * 2. The grid sum (puz_cksum_region(puz->grid, grid_len, 0x0000))
  * 3. The secondary puz sum (puz_cksum2(puz)) 
  *
  * The low bytes of these are then masked with the magic_10_mask from
@@ -262,8 +259,8 @@ static void magic_gen_10(unsigned char *dest, unsigned short *sums) {
  *
  * The checksums to put in sums are:
  * 0. The CIB sum (from puz_cksum_cib(puz))
- * 1. The solution sum (cksum_region(puz->solution, sol_len, 0x0000))
- * 2. The grid sum (cksum_region(puz->grid, grid_len, 0x0000))
+ * 1. The solution sum (puz_cksum_region(puz->solution, sol_len, 0x0000))
+ * 2. The grid sum (puz_cksum_region(puz->grid, grid_len, 0x0000))
  * 3. The secondary puz sum (puz_cksum2(puz)) 
  *
  * The high bytes of these are then masked with the magic_10_mask from
@@ -289,7 +286,7 @@ static unsigned short rtbl_gen(struct puzzle_t *puz) {
 
   rtbl_str = puz_rtblstr_get(puz); // XXX might return NULL
   if (rtbl_str) {
-    ck = cksum_region(rtbl_str, Sstrlen(rtbl_str), 0x0000);
+    ck = puz_cksum_region(rtbl_str, Sstrlen(rtbl_str), 0x0000);
     free(rtbl_str);
     return ck;
   } else {
@@ -317,14 +314,16 @@ int puz_cksums_calc(struct puzzle_t *puz) {
   w_le_8(puz->cib+1, puz->header.height);
   w_le_16(puz->cib+2, puz->header.clue_count);
   w_le_16(puz->cib+4, puz->header.x_unk_30);
-  w_le_16(puz->cib+6, puz->header.x_unk_32);
+  w_le_16(puz->cib+6, puz->header.scrambled_tag);
 
   puz0 = puz_cksum2(puz, 0x0000);
   cib = puz_cksum_cib(puz);
   puzcib = puz_cksum(puz, cib);
 
-  grid = cksum_region(puz->grid, puz->header.width*puz->header.height, 0x0000);
-  soln = cksum_region(puz->solution, puz->header.width*puz->header.height, 0x0000);
+  grid = puz_cksum_region(puz->grid, puz->header.width*puz->header.height,
+                          0x0000);
+  soln = puz_cksum_region(puz->solution, puz->header.width*puz->header.height,
+                          0x0000);
 
   // printf("Cksums: %04x %04x %04x %04x\n", soln, cib, puz0, grid);
 
@@ -339,17 +338,21 @@ int puz_cksums_calc(struct puzzle_t *puz) {
   magic_gen_14(puz->calc_magic14, puz->calc_cksums);
 
   if (puz_has_rebus(puz)) {
-    puz->calc_grbs_cksum = cksum_region(puz->grbs, puz->header.width*puz->header.height, 0x0000);
+    puz->calc_grbs_cksum = 
+      puz_cksum_region(puz->grbs, puz->header.width*puz->header.height,
+                       0x0000);
     puz->calc_rtbl_cksum = rtbl_gen(puz);
   }
 
   if (puz_has_timer(puz)) {
-    puz->calc_ltim_cksum = cksum_region(puz->ltim, Sstrlen(puz->ltim),
-                                        0x0000);
+    puz->calc_ltim_cksum = puz_cksum_region(puz->ltim, Sstrlen(puz->ltim),
+                                            0x0000);
   }
 
   if (puz_has_extras(puz)) {
-    puz->calc_gext_cksum = cksum_region(puz->gext, puz->header.width*puz->header.height, 0x0000);
+    puz->calc_gext_cksum = 
+      puz_cksum_region(puz->gext, puz->header.width*puz->header.height, 
+                       0x0000);
   }
 
   return 0;

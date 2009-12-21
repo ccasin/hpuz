@@ -52,7 +52,7 @@ struct puz_head_t {
   // 1c,1d unwritten memory noise
   unsigned short noise_1c;
 
-  unsigned short x_unk_1e;
+  unsigned short scrambled_cksum;
 
   // 20-2b unwritten memory noise
   unsigned short noise_20;
@@ -67,7 +67,7 @@ struct puz_head_t {
   unsigned char height;
   unsigned short clue_count;
   unsigned short x_unk_30;  // a bitmask of some sort
-  unsigned short x_unk_32;
+  unsigned short scrambled_tag;
 };
 
 // A whole, parsed puzzle file
@@ -155,6 +155,9 @@ struct puzzle_t {
 struct puzzle_t *puz_init(struct puzzle_t *puz);
 
 struct puzzle_t *puz_load(struct puzzle_t *retval, int type, unsigned char *base, int sz);
+
+unsigned short puz_cksum_region(unsigned char *base, int len, 
+                                unsigned short cksum);
 int puz_cksums_calc(struct puzzle_t *puz);
 int puz_cksums_check(struct puzzle_t *puz);
 
@@ -219,5 +222,9 @@ int puz_has_extras(struct puzzle_t *puz);
 
 unsigned char * puz_extras_get(struct puzzle_t *puz);
 unsigned char * puz_extras_set(struct puzzle_t *puz, unsigned char * val);
+
+int puz_is_locked_get(struct puzzle_t *puz);
+unsigned short puz_locked_cksum_get(struct puzzle_t *puz);
+unsigned short puz_lock_set(struct puzzle_t *puz, unsigned short cksum);
 
 #endif /* ndef __LIBPUZ_H__ */

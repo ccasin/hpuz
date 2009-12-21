@@ -87,7 +87,7 @@ static struct puz_head_t *read_puz_head(struct puz_head_t *h, unsigned char *bas
   h->noise_1c = le_16(base+i);
   i += 2;
 
-  h->x_unk_1e = le_16(base+i);
+  h->scrambled_cksum = le_16(base+i);
   i += 2;
 
   h->noise_20 = le_16(base+i);
@@ -112,7 +112,7 @@ static struct puz_head_t *read_puz_head(struct puz_head_t *h, unsigned char *bas
   
   h->x_unk_30 = le_16(base+i);
   i += 2;
-  h->x_unk_32 = le_16(base+i);
+  h->scrambled_tag = le_16(base+i);
   i += 2;
 
   return h;

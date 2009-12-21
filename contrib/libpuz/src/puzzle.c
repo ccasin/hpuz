@@ -863,3 +863,62 @@ unsigned char * puz_extras_set(struct puzzle_t *puz, unsigned char *val) {
 
   return puz->gext;
 }
+
+
+/**
+ * puz_is_locked_get - check if the puzzle's solution is scrambled
+ *
+ * @puz: a pointer to the struct puzzle_t to check (required)
+ * 
+ * returns the value of the puzzle's locked flag (0 if unscrambled,
+ *   nonzero if scrambled).
+ */
+int puz_is_locked_get (struct puzzle_t *puz) {
+  if(NULL == puz)
+    return 0;
+
+  return puz->header.scrambled_tag;
+}
+
+/**
+ * puz_locked_cksum_get - for puzzles that are locked, this returns
+ *   the checksum of the real solution.
+ *
+ * @puz: a pointer to the struct puzzle_t to check against (required)
+ * 
+ * If the puzzle is locked, this returns a short, which is the result 
+ * of calling:
+ *     puz_cksum_region(sol, len, 0x0000);
+ * where sol is the correct solution in column major order with the black
+ * squares removed, and len is its length.
+ * 
+ */
+unsigned short puz_locked_cksum_get(struct puzzle_t *puz) {
+  if(NULL == puz)
+    return 0;
+  
+  return puz->header.scrambled_cksum;
+}
+
+/**
+ * puz_lock_set - set the flags indicating a puzzle's solution is locked
+ *
+ * @puz: a pointer to the struct puzzle_t to check (required)
+ * @cksum: a unsigned short, the result of calling:
+ *     puz_cksum_region(sol, len, 0x0000);
+ *   when sol is the correct solution in column-major order with the
+ *   black squares removed and len is its length.
+ * 
+ * returns the input upon success.  Otherwise, -1.
+ */
+unsigned short puz_lock_set (struct puzzle_t *puz, unsigned short cksum) {
+  if(NULL == puz)
+    return -1;
+
+  puz->header.scrambled_tag = 4;
+  puz->header.scrambled_cksum = cksum;
+
+  return cksum;
+}
+
+
