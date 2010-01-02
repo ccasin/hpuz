@@ -54,7 +54,7 @@ puzTypeIn :: (CInt -> IO b) -> IO b
 puzTypeIn = alwaysUseIn $ cIntConv $ fromEnum PuzTypeBinary
 
 zeroShortIn :: (CUShort -> IO b) -> IO b
-zeroShortIn = alwaysUseIn $ fromIntegral 0x0000
+zeroShortIn = alwaysUseIn $ fromIntegral (0x0000 :: Int)
 
 puzIn :: Puz -> (Ptr Puz -> IO b) -> IO b
 puzIn (Puz fp) = withForeignPtr fp

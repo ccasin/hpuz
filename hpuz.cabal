@@ -4,15 +4,18 @@ Cabal-Version:       >=1.2
 Build-Type:          Simple
 License:             OtherLicense
 License-file:        LICENSE
-Copyright:           Copyright (c) Chris Casinghino 2009
+Copyright:           Copyright (c) Chris Casinghino 2009-2010
 Author:              Chris Casinghino
 Maintainer:          chris.casinghino@gmail.com
 Category:            Crosswords
 
-Stability:           Experimental
+Stability:           Provisional
 Synopsis:            Haskell bindings for libpuz
 Tested-With:         GHC >= 6.10.3
-Extra-Source-Files:  INSTALL
+Extra-Source-Files:  INSTALL,
+                     LICENSE.GPL,
+                     LICENSE.MIT,
+                     contrib/libpuz/include/puz.h
 Description: {
 Provides support for reading and writing the .puz crossword puzzle 
 format from haskell.
@@ -24,6 +27,7 @@ Library
   Other-modules:     Codec.Game.Puz.Internal
   build-tools:       c2hs >= 0.16.0
   include-dirs:      contrib/libpuz/include
+  includes:          contrib/libpuz/include/puz.h
   c-sources:         contrib/libpuz/src/cksum.c,
                      contrib/libpuz/src/load.c,
                      contrib/libpuz/src/save.c,
