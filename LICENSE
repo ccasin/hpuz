@@ -5,7 +5,7 @@ Copyright 2009 Chris Casinghino
 This development is available under both the MIT and GPL2 licenses,
 found in LICENSE.MIT and LICENSE.GPL respectively.  These licenses
 cover everything in the top level directory and the Codec directory.
-The "contrib" directory includes code written by other people and
-which is licensed seperately.
+The "contrib" directory includes code which is written by other people
+and licensed seperately.
 
 

@@ -1,5 +1,5 @@
 Name:                hpuz
-Version:             0.0.2
+Version:             1.0.0
 Cabal-Version:       >=1.2
 Build-Type:          Simple
 License:             OtherLicense
@@ -12,7 +12,7 @@ Category:            Crosswords
 Stability:           Experimental
 Synopsis:            Haskell bindings for libpuz
 Tested-With:         GHC >= 6.10.3
--- Extra-Source-Files:  INSTALL
+Extra-Source-Files:  INSTALL
 Description: {
 Provides support for reading and writing the .puz crossword puzzle 
 format from haskell.
@@ -28,5 +28,4 @@ Library
                      contrib/libpuz/src/load.c,
                      contrib/libpuz/src/save.c,
                      contrib/libpuz/src/puzzle.c
---  extra-libraries:   puz
   ghc-options:       -Wall

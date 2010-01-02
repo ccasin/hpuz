@@ -1,3 +1,4 @@
 
 - we're really not passing along any error conditions at all, and this
   must be fixed.
+- better documentation
