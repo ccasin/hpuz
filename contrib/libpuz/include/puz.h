@@ -23,8 +23,6 @@
 #define _GNU_SOURCE
 #include <string.h>
 
-char *strndup(const char *s, size_t n);
-
 // little-endian access routines
 
 #define le_32(x) ( ((*(x+3)) << 24) + ((*(x+2)) << 16) + \
@@ -146,7 +144,6 @@ struct puzzle_t {
 /* Sign-ified str ops to silence GCC4 signedness warnings */
 #define Sstrlen(x) strlen((char *)(x))
 #define Sstrdup(x) (unsigned char *)strdup((char *)(x))
-#define Sstrndup(x,n) (unsigned char *)strndup((char *)(x), (n))
 #define Sstrncpy(dest,src,n) ((unsigned char*)strncpy((char *)(dest),(char *)(src),(n)))
 #define Sstrchr(x,c) (unsigned char *)strchr((char *)(x), (c))
 #define Satoi(x) atoi((char *)(x))

@@ -172,12 +172,15 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
   memcpy(puz->cib, base+0x2c, 8);
 
   i = 0x34;
-
-  puz->solution = Sstrndup(base+i, puz->header.width*puz->header.height);
-  i += puz->header.width*puz->header.height;
+  int bd_sz = puz->header.width*puz->header.height;
   
-  puz->grid = Sstrndup(base+i, puz->header.width*puz->header.height);
-  i += puz->header.width*puz->header.height;
+  puz->solution = calloc(sizeof(unsigned char), 1+bd_sz);
+  Sstrncpy(puz->solution, base+i, bd_sz);
+  i += bd_sz;
+
+  puz->grid = calloc(sizeof(unsigned char), 1+bd_sz);
+  Sstrncpy(puz->grid, base+i, bd_sz);
+  i += bd_sz;
   
   puz->title = Sstrdup(base+i);
   i += Sstrlen(puz->title) + 1;
@@ -255,16 +258,16 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
       i += 2;
 
       // rebus grid
-      puz->grbs = (unsigned char*) malloc(puz->header.width*puz->header.height * sizeof(unsigned char));
+      puz->grbs = (unsigned char*) malloc(bd_sz * sizeof(unsigned char));
       // XXX could fail
-      memcpy(puz->grbs, base+i, puz->header.width*puz->header.height);
-      i += puz->header.width*puz->header.height;
+      memcpy(puz->grbs, base+i, bd_sz);
+      i += bd_sz;
       i += 1; // NULL terminator
 
       // check if there actually are any rebuses
       int rbssum = 0;
       int rbsj = 0;
-      for (; rbsj<puz->header.width*puz->header.height; rbsj++) {
+      for (; rbsj < bd_sz; rbsj++) {
         rbssum += puz->grbs[rbsj];
       }
       // if rbssum is 0, the rebus grid is empty and should be ignored
@@ -324,8 +327,8 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
       puz->ltim_cksum = le_16(base+i);
       i += 2;
 
-      puz->ltim = Sstrndup(base+i, ltim_sz);
-      puz->ltim[ltim_sz] = 0;
+      puz->ltim = calloc(sizeof(unsigned char), ltim_sz);
+      Sstrncpy(puz->ltim, base+i, ltim_sz);
 
       i += ltim_sz + 1;
     }
@@ -341,9 +344,9 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
       i += 2;
 
       // extras grid
-      puz->gext = (unsigned char *) malloc(puz->header.width*puz->header.height * sizeof(unsigned char));
-      memcpy(puz->gext, base+i, puz->header.width*puz->header.height);
-      i += puz->header.width*puz->header.height; 
+      puz->gext = (unsigned char *) malloc(bd_sz * sizeof(unsigned char));
+      memcpy(puz->gext, base+i, bd_sz);
+      i += bd_sz;
 
       i += 1; // NULL terminator
     }
