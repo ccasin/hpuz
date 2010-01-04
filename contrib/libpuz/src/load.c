@@ -327,7 +327,7 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
       puz->ltim_cksum = le_16(base+i);
       i += 2;
 
-      puz->ltim = calloc(sizeof(unsigned char), ltim_sz);
+      puz->ltim = calloc(sizeof(unsigned char), ltim_sz+1);
       Sstrncpy(puz->ltim, base+i, ltim_sz);
 
       i += ltim_sz + 1;
