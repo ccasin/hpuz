@@ -109,11 +109,19 @@ unsigned short puz_cksum(struct puzzle_t *puz, unsigned short cksum) {
   cksum = puz_cksum_region(puz->grid, puz_a, cksum);
   
   // title string w/NUL
-  cksum = puz_cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
+  if(Sstrlen(puz->title) > 0) {
+    cksum = puz_cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
+  }
+
   // author string w/NUL
-  cksum = puz_cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
+  if (Sstrlen(puz->author) > 0) {
+    cksum = puz_cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
+  }
+
   // copyright string w/NUL
-  cksum = puz_cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
+  if (Sstrlen(puz->copyright) > 0) {
+    cksum = puz_cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
+  }
 #else
   // find the beginning of the first clue
   p = puz->base + 0x2c + puz_a + puz_a;
@@ -169,12 +177,21 @@ unsigned short puz_cksum2(struct puzzle_t *puz, unsigned short cksum) {
 
 #define CKSUM_PIECEWISE 1
 #if CKSUM_PIECEWISE
+
   // title string w/NUL
-  cksum = puz_cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
+  if(Sstrlen(puz->title) > 0) {
+    cksum = puz_cksum_region(puz->title, Sstrlen(puz->title)+1, cksum);
+  }
+
   // author string w/NUL
-  cksum = puz_cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
+  if (Sstrlen(puz->author) > 0) {
+    cksum = puz_cksum_region(puz->author, Sstrlen(puz->author)+1, cksum);
+  }
+
   // copyright string w/NUL
-  cksum = puz_cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
+  if (Sstrlen(puz->copyright) > 0) {
+    cksum = puz_cksum_region(puz->copyright, Sstrlen(puz->copyright)+1, cksum);
+  }
 #else
   int puz_a = puz->header.width*puz->header.height;
   char *p;
