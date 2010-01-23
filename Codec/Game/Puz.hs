@@ -447,10 +447,12 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
                   do saveChk <- puzSave puz ptr sz
                      if not saveChk 
                        then return $ Just "Internal Error: puzSave failed."
-                       else do handle <- openFile fname WriteMode
-                               hPutBuf handle ptr sz
-                               hClose handle
-                               return Nothing)
+                       else catch 
+                              (do handle <- openFile fname WriteMode
+                                  hPutBuf handle ptr sz
+                                  hClose handle
+                                  return Nothing)
+                              (\err -> return $ Just $ show err))
 
 
 stringCksum :: String -> IO CUShort
