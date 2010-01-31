@@ -1,5 +1,5 @@
 Name:                hpuz
-Version:             1.0.3
+Version:             1.0.4
 Cabal-Version:       >=1.2
 Build-Type:          Simple
 License:             OtherLicense
@@ -9,7 +9,7 @@ Author:              Chris Casinghino
 Maintainer:          chris.casinghino@gmail.com
 Category:            Crosswords
 
-Stability:           Provisional
+Stability:           Stable
 Synopsis:            Haskell bindings for libpuz
 Tested-With:         GHC >= 6.10.3
 Extra-Source-Files:  INSTALL,
