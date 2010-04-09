@@ -922,3 +922,70 @@ unsigned short puz_lock_set (struct puzzle_t *puz, unsigned short cksum) {
 }
 
 
+/**
+ * unscramble_string - an internal function used by puz_unscramble.
+ * 
+ * Let s be a string and len be its length.  A "scrambled" version
+ * of s looks like:
+ *
+ * [ s[len/2], s[0], s[1 + (len/2)], s[1], s[2 + (len/2)], s[2],  ...]
+ *
+ * This function takes such a scrambled string (inp) and unscrambles
+ * it into another string (out).  inp and out had better have the same
+ * length.
+ * 
+ * return -1 on error and 0 otherwise.
+ * 
+ */
+unsigned int unscramble_string (unsigned char* inp, unsigned char* out) {
+  if(NULL == inp || NULL == out)
+    return -1;
+
+  int len = Sstrlen(inp);
+  int strbreak = len/2;
+  
+  int i;
+  for(i = 0; i < len; i++) {
+    int index;
+    if (0 == i%2) {
+      index = strbreak + i/2;
+    } else {
+      index = i/2;
+    }
+    
+    out[index] = inp[i];
+  }
+  out[len] = 0;
+
+  return 0;
+}
+
+/**
+ * unshift_string - an internal function used by puz_unscramble.
+ * 
+ * Given a string s and an int k, the "shifted" verison of s is created
+ * by moving everything before index k to the end of the string.
+ * 
+ * This takes such a shifted string (inp) and undoes the shifting into
+ * (out).
+ *
+ * return -1 on error and 0 otherwise.
+ */
+unsigned int unshift_string(unsigned char* inp, unsigned int shift,
+                            unsigned char* out) {
+  if(NULL == inp || NULL == out)
+    return -1;
+
+  int len = Sstrlen(inp);
+
+  if (len < shift)
+    return -1;
+
+  Sstrncpy(out + shift, inp, len - shift);
+  Sstrncpy(out, inp + (len - shift), shift);
+
+  out[len] = 0;
+
+  return 0;
+}
+
