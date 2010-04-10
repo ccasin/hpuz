@@ -5,7 +5,6 @@
 module Codec.Game.Puz.Internal where
 
 import Foreign
-import Foreign.Ptr
 import Foreign.C
 
 import Text.ParserCombinators.Parsec
@@ -91,7 +90,7 @@ rtblParser :: Parser [(Int,String)]
 rtblParser =
   sepEndBy (do spaces
                ds <- many1 digit
-               char ':'
+               _ <- char ':'
                reb <- many1 alphaNum
                return ((read ds) + 1, reb)) 
            (char ';')
@@ -371,6 +370,13 @@ rtblOut ptr =
    , zeroShortIn- `CUShort' }
    ->
    `CUShort' id
+ #}
+
+{# fun puz_unlock_solution as puzUnlockSolution
+   { puzIn* `Puz'
+   , id `CUShort' }
+   ->
+   `Bool' cerrToBool
  #}
 
 ------

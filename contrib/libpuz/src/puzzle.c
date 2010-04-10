@@ -901,11 +901,14 @@ unsigned short puz_locked_cksum_get(struct puzzle_t *puz) {
 }
 
 /**
- * puz_lock_set - set the flags indicating a puzzle's solution is locked
+ * puz_lock_set - set the flags indicating whether a puzzle's solution
+ *    is locked
  *
  * @puz: a pointer to the struct puzzle_t to check (required)
- * @cksum: a unsigned short, the result of calling:
- *     puz_cksum_region(sol, len, 0x0000);
+
+ * @cksum: An unsigned short.  If this is 0, the puzzle is set
+ *   "unlocked". Otherwise, is should be the result of calling:
+ *       puz_cksum_region(sol, len, 0x0000); 
  *   when sol is the correct solution in column-major order with the
  *   black squares removed and len is its length.
  * 
@@ -915,8 +918,13 @@ unsigned short puz_lock_set (struct puzzle_t *puz, unsigned short cksum) {
   if(NULL == puz)
     return -1;
 
-  puz->header.scrambled_tag = 4;
-  puz->header.scrambled_cksum = cksum;
+  if(cksum) {
+    puz->header.scrambled_tag = 4;
+    puz->header.scrambled_cksum = cksum;
+  } else {
+    puz->header.scrambled_tag = 0;
+    puz->header.scrambled_cksum = 0x0000;
+  }
 
   return cksum;
 }
@@ -937,7 +945,7 @@ unsigned short puz_lock_set (struct puzzle_t *puz, unsigned short cksum) {
  * return -1 on error and 0 otherwise.
  * 
  */
-unsigned int unscramble_string (unsigned char* inp, unsigned char* out) {
+unsigned short unscramble_string (unsigned char* inp, unsigned char* out) {
   if(NULL == inp || NULL == out)
     return -1;
 
@@ -971,8 +979,8 @@ unsigned int unscramble_string (unsigned char* inp, unsigned char* out) {
  *
  * return -1 on error and 0 otherwise.
  */
-unsigned int unshift_string(unsigned char* inp, unsigned int shift,
-                            unsigned char* out) {
+unsigned short unshift_string(unsigned char* inp, unsigned int shift,
+                              unsigned char* out) {
   if(NULL == inp || NULL == out)
     return -1;
 
@@ -989,3 +997,93 @@ unsigned int unshift_string(unsigned char* inp, unsigned int shift,
   return 0;
 }
 
+/**
+ * puz_unlock_puzzle - unlock a puzzle with a key
+ *
+ * @puz: a pointer to the struct puzzle_t to check (required) 
+ * @code: an unsigned short.  This is the code for unlocking the
+ *   puzzle.  It must be a number between 1111 and 9999 and have no
+ *   0s.
+ * 
+ * On success, returns 0.  Nonzero otherwise.  A few specific error codes:
+ *   1 means the puzzle wasn't scrambled
+ *   2 means the code didn't work
+ */
+int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
+
+  if(NULL == puz)
+    return -1;
+
+  // make sure the puzzle is actually scrambled
+  if(!(puz->header.scrambled_tag))
+    return 1;
+
+  int digits[4];
+  digits[0] = (code/1000) % 10;
+  digits[1] = (code/100)  % 10;
+  digits[2] = (code/10)   % 10;
+  digits[3] = code        % 10;
+
+  // make sure the code is valid
+  int i;
+  for (i = 0; i < 4; i++) {
+    if(digits[i] == 0)
+      return -2;
+  }
+
+  // first we must calculate the unscrambled solution.  It's possible
+  // the key passed will be wrong and we'll have to fail after we
+  // calculate it.
+  unsigned char* sol = puz_solution_get(puz);
+  int len = Sstrlen(sol);
+  unsigned char* workspace1 = calloc(len+1, sizeof(unsigned char));
+  unsigned char* workspace2 = calloc(len+1, sizeof(unsigned char));
+  if (NULL == workspace1 || NULL == workspace2)
+    return -3;
+
+  Sstrncpy(workspace1, sol, len+1);
+
+  int e1, e2, j;
+  for(i = 3; i >= 0; i--) {
+    e1 = unscramble_string(workspace1, workspace2);
+    e2 = unshift_string(workspace2, digits[i], workspace1);
+    if(e1 || e2)
+      return -4;
+
+   
+    for (j = 0; j < len; j++) {
+      workspace1[j] -= digits[j % 4];
+      if (workspace1[j] < 65)
+        workspace1[j] += 26;
+    }
+  }
+
+  // Now we have to check - did this unscrambling mess actually
+  // produce something with the right checksum?  The stored
+  // checksum is for the solution _without_ black squares, so 
+  // first we create a copy without them in workspace 2.
+  int index = 0;
+  for(j=0; j<len; j++) {
+    if(workspace1[j] != '.') {
+      workspace2[index] = workspace1[j];
+      index++;
+    }
+  }
+  workspace2[j] = 0;
+
+
+  unsigned short cksum = puz_cksum_region(workspace2, len, 0x0000);
+  if (cksum != puz->header.scrambled_cksum)
+    return 2;
+
+  // Awesome, the unscrambled solution has the right checksum, so
+  // it's almost certainly the correct board.  Copy it in as the solution
+  // and fix up all the scrambled markers
+  Sstrncpy(puz->solution, workspace1, len+1);
+  puz_lock_set(puz, 0x0000);
+
+  free(workspace1);
+  free(workspace2);
+  
+  return 0;
+}

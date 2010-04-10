@@ -416,7 +416,7 @@ savePuzzle fname (Puzzle {width, height, grid, solution,
        Just (e,s) -> puzSetTimer puz e s
 
      puzSetClueCount puz clueCount
-     mapM (\(n,c) -> puzSetClue puz n c) (zip [0..] clueStrs)
+     mapM_ (\(n,c) -> puzSetClue puz n c) (zip [0..] clueStrs)
 
      withArray userBoard (puzSetGrid puz)
      withArray solBoard (puzSetSolution puz)
