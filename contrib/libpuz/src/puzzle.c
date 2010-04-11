@@ -997,6 +997,71 @@ unsigned short unshift_string(unsigned char* inp, unsigned int shift,
   return 0;
 }
 
+/* the scrambling functions use this impossibly unfortunate
+   representation for the board.  We calculate it here.
+
+   NULL on error
+ */
+unsigned char* formatted_solution(struct puzzle_t* puz) {
+  if (puz == NULL)
+    return NULL;
+
+  int w = puz_width_get(puz);
+  int h = puz_height_get(puz);
+  int board_sz = w*h;
+  
+  unsigned char* sol = puz_solution_get(puz);
+
+  int i,size = 0;
+  for(i=0; i < board_sz; i++) {
+    if(sol[i] != '.')
+      size++;
+  }
+
+  unsigned char* out = calloc(size+1, sizeof(unsigned char));
+  int j,index = 0;
+  for(i=0; i < w; i++) {
+    for(j=0; j < h; j++) {
+      if (sol[j*h + i] != '.') {
+        out[index] = sol[j*h + i];
+        index++;
+      }
+    }
+  }
+
+  out[size] = 0;
+  return out;
+}
+
+int unformat_unlocked_sol(struct puzzle_t* puz, unsigned char* formatted) {
+  if (puz == NULL || formatted == NULL)
+    return -1;
+
+  int w = puz_width_get(puz);
+  int h = puz_height_get(puz);
+  int board_sz = w*h;
+  int len = Sstrlen(formatted);
+
+
+  unsigned char* sol = puz_solution_get(puz);
+
+  int i,j;
+  int index = 0;
+
+  // XXX this could fail if we calculated something poorly (but shouldn't)
+  for(i=0; i < w; i++) {
+    for(j=0; j < h; i++) {
+      if (sol[j*h + i] != '.') {
+        sol[j*h + i] = formatted[index];
+        index++;
+      }
+    }
+  }
+
+  return 0;
+}
+
+
 /**
  * puz_unlock_puzzle - unlock a puzzle with a key
  *
@@ -1014,9 +1079,11 @@ int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
   if(NULL == puz)
     return -1;
 
+
   // make sure the puzzle is actually scrambled
-  if(!(puz->header.scrambled_tag))
+  if(!(puz->header.scrambled_tag)) {
     return 1;
+  }
 
   int digits[4];
   digits[0] = (code/1000) % 10;
@@ -1034,14 +1101,14 @@ int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
   // first we must calculate the unscrambled solution.  It's possible
   // the key passed will be wrong and we'll have to fail after we
   // calculate it.
-  unsigned char* sol = puz_solution_get(puz);
-  int len = Sstrlen(sol);
+  unsigned char* inp = formatted_solution(puz);
+  int len = Sstrlen(inp);
   unsigned char* workspace1 = calloc(len+1, sizeof(unsigned char));
   unsigned char* workspace2 = calloc(len+1, sizeof(unsigned char));
   if (NULL == workspace1 || NULL == workspace2)
     return -3;
 
-  Sstrncpy(workspace1, sol, len+1);
+  Sstrncpy(workspace1, inp, len+1);
 
   int e1, e2, j;
   for(i = 3; i >= 0; i--) {
@@ -1073,13 +1140,14 @@ int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
 
 
   unsigned short cksum = puz_cksum_region(workspace2, len, 0x0000);
-  if (cksum != puz->header.scrambled_cksum)
+  if (cksum != puz->header.scrambled_cksum) {
     return 2;
+  }
 
   // Awesome, the unscrambled solution has the right checksum, so
   // it's almost certainly the correct board.  Copy it in as the solution
   // and fix up all the scrambled markers
-  Sstrncpy(puz->solution, workspace1, len+1);
+  unformat_unlocked_sol(puz, workspace1);
   puz_lock_set(puz, 0x0000);
 
   free(workspace1);

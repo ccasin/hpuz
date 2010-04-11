@@ -4,7 +4,7 @@ module Codec.Game.Puz
         Dir (Across,Down), Puzzle (Puzzle), Index,
         width,height,grid,solution,title,author,notes,
         copyright,timer,clues,locked,
-        numberGrid,loadPuzzle,savePuzzle,stringCksum)
+        numberGrid,unlockPuz,loadPuzzle,savePuzzle,stringCksum)
 where
 
 import Codec.Game.Puz.Internal
@@ -241,7 +241,131 @@ numberClues cls bd =
 
         rec = case nextind of Nothing -> []
                               Just ind -> findclues nextnum ind
+
+-- These internal functions, fromPuz and toPuz, martial between
+-- the internal Puz pointers and the exposed Puzzle datastructure
+
+fromPuz :: Puz -> IO Puzzle
+fromPuz puz = 
+  do width  <- puzGetWidth puz
+     height <- puzGetHeight puz
+     let bdChrs = boardCharsOut width height
+         emptyBd = listArray ((0,0),(width-1,height-1)) (repeat $ toEnum 0)
+     
+     -- Now get all the raw strings we need from the internal 
+     -- puz structure
+     gridChrs  <- puzGetGrid puz >>= bdChrs
+     solChrs   <- puzGetSolution puz >>= bdChrs
+     
+     title     <- puzGetTitle puz
+     author    <- puzGetAuthor puz
+     copyright <- puzGetCopyright puz
+     notes     <- puzGetNotes puz
+
+     hasTimer  <- puzHasTimer puz
+     timer    <- if hasTimer 
+                   then liftM2 (\x y -> Just (x,y)) 
+                          (puzGetTimerElapsed puz) 
+                          (puzGetTimerStopped puz)
+                   else return Nothing
+     
+     hasRebus  <- puzHasRebus puz
+     rebusChrs <- if hasRebus then puzGetRebus puz >>= bdChrs
+                              else return emptyBd
+     rebusTbl  <- if hasRebus then puzGetRtbl puz else return []
+     
+     hasExtras <- puzHasExtras puz
+     extraChrs <- if hasExtras then puzGetExtras puz >>= bdChrs
+                               else return emptyBd
+     
+     clueCount <- puzGetClueCount puz
+     clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
+
+     isScrambled <- puzIsLockedGet puz
+     locked <- if isScrambled then liftM Just $ puzLockedCksumGet puz
+                              else return Nothing
+
+     -- we use these strings and the puz data to get everything we
+     -- need to build a Puzzle
+     let grid, solution :: Array Index Square
+         grid     = readBoard True gridChrs rebusChrs rebusTbl extraChrs
+         solution = readBoard False solChrs rebusChrs rebusTbl extraChrs
+     
+         clues :: [(Int,Dir,String)]
+         clues = numberClues clueStrs grid
+     
+     return $
+       Puzzle {width, height, grid, solution, title, author, copyright,
+               notes, timer, clues, locked}
     
+
+toPuz :: Puzzle -> IO (Either ErrMsg Puz)
+toPuz (Puzzle {width, height, grid, solution, title, author, notes, 
+               copyright, timer, clues, locked}) =
+  let clueCount = length clues
+      clueStrs  = map (\(_,_,s) -> s) (sortBy orderClues clues)
+
+      -- since these arrays are row-major but that's the wrong order for
+      -- libpuz, we flip the indices first, which gets us a list in the
+      -- right order
+      gridSqs,solSqs :: [Square]
+      gridSqs = elems (ixmap ((0,0),(height-1,width-1)) 
+                             (\(a,b) -> (b,a)) grid)
+      solSqs  = elems (ixmap ((0,0),(height-1,width-1)) 
+                             (\(a,b) -> (b,a)) solution)
+
+      userBoard,solBoard :: [CUChar]
+      userBoard   = map squareToBoardChar gridSqs
+      solBoard    = map squareToBoardChar solSqs
+
+      extrasBoard :: Maybe [CUChar]
+      extrasBoard = gridToExtras solSqs
+
+      rebusInfo :: Maybe ([(String,Int)],[CUChar])
+      rebusInfo = gridToRebus solSqs
+  in
+  do puz <- puzCreate
+            
+     -- set the easy stuff that is marshalled by Internal
+     puzSetWidth     puz width
+     puzSetHeight    puz height
+
+     puzSetTitle     puz title
+     puzSetAuthor    puz author
+     puzSetNotes     puz notes
+     puzSetCopyright puz copyright
+
+     case timer of
+       Nothing -> return ()
+       Just (e,s) -> puzSetTimer puz e s
+
+     puzSetClueCount puz clueCount
+     mapM_ (\(n,c) -> puzSetClue puz n c) (zip [0..] clueStrs)
+
+     withArray0 0 userBoard (puzSetGrid puz)
+     withArray0 0 solBoard (puzSetSolution puz)
+
+     case extrasBoard of
+       Nothing -> return ()
+       Just b -> withArray0 0 b (puzSetExtras puz)
+       
+     case rebusInfo of
+       Nothing -> return ()
+       Just (rtbl,rbd) -> do withArray0 0 rbd (puzSetRebus puz)
+                             puzSetRtbl puz rtbl
+
+     case locked of
+       Nothing -> return ()
+       Just cksum -> puzLockSet puz cksum
+                             
+     puzCksumsCalc puz
+     puzCksumsCommit puz
+     cksumChk <- puzCksumsCheck puz
+
+     return $
+       if not cksumChk 
+         then Left "Internal Error: Checksum calculation failed." 
+         else Right puz
 
 {- ---- Exposed library ---- -}
 
@@ -287,6 +411,18 @@ numberGrid grid =
     bd_ass :: [(Index, Maybe Int)]
     (_,bd_ass) = foldl folder (1,[]) ass
 
+-- This is pretty inefficient!
+unlockPuz :: Puzzle -> CUShort -> IO (Either ErrMsg Puzzle)
+unlockPuz puzzle code =
+  do epuz <- toPuz puzzle
+     case epuz of
+       Left err -> return $ Left err
+       Right puz -> 
+         do hadproblem <- puzUnlockSolution puz code
+            if hadproblem 
+              then return $ Left (   "Code " ++ show code 
+                                  ++ "didn't unlock the puzzle")
+              else liftM Right $ fromPuz puz
 
 loadPuzzle :: String -> IO (Either Puzzle ErrMsg)
 loadPuzzle fname =
@@ -315,132 +451,15 @@ loadPuzzle fname =
            Just puz -> 
              puzCksumsCheck puz >>= 
                \v -> if not v 
-                       then return $ 
-                               Right "Ill-formed puzzle: bad checksums"
-                       else do
-             width  <- puzGetWidth puz
-             height <- puzGetHeight puz
-             let bdChrs = boardCharsOut width height
-                 emptyBd = listArray ((0,0),(width-1,height-1)) 
-                                     (repeat $ toEnum 0)
-             
-             -- Now get all the raw strings we need from the internal 
-             -- puz structure
-             gridChrs  <- puzGetGrid puz >>= bdChrs
-             solChrs   <- puzGetSolution puz >>= bdChrs
-             
-             title     <- puzGetTitle puz
-             author    <- puzGetAuthor puz
-             copyright <- puzGetCopyright puz
-             notes     <- puzGetNotes puz
-
-             hasTimer  <- puzHasTimer puz
-             timer    <- if hasTimer 
-                           then liftM2 (\x y -> Just (x,y)) 
-                                  (puzGetTimerElapsed puz) 
-                                  (puzGetTimerStopped puz)
-                           else return Nothing
-             
-             hasRebus  <- puzHasRebus puz
-             rebusChrs <- if hasRebus then puzGetRebus puz >>= bdChrs
-                                      else return emptyBd
-             rebusTbl  <- if hasRebus then puzGetRtbl puz
-                                      else return []
-             
-             hasExtras <- puzHasExtras puz
-             extraChrs <- if hasExtras then puzGetExtras puz >>= bdChrs
-                                       else return emptyBd
-             
-             clueCount <- puzGetClueCount puz
-             clueStrs  <- mapM (puzGetClue puz) [0..(clueCount-1)]
-
-             isScrambled <- puzIsLockedGet puz
-             locked <- if isScrambled then liftM Just $ puzLockedCksumGet puz
-                                      else return Nothing
-
-             -- we use these strings and the puz data to get everything we
-             -- need to build a Puzzle
-             let grid, solution :: Array Index Square
-                 grid     = readBoard True gridChrs rebusChrs rebusTbl 
-                                      extraChrs
-                 solution = readBoard False solChrs rebusChrs rebusTbl 
-                                      extraChrs
-             
-                 clues :: [(Int,Dir,String)]
-                 clues = numberClues clueStrs grid
-             
-             return $ Left $
-               Puzzle {width, height, grid, solution,
-                       title, author, copyright, notes, timer,
-                       clues, locked}
+                       then return $ Right "Ill-formed puzzle: bad checksums"
+                       else liftM Left $ fromPuz puz
 
 savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
-savePuzzle fname (Puzzle {width, height, grid, solution,
-                          title, author, notes, copyright, timer,
-                          clues, locked}) =
-  let clueCount = length clues
-      clueStrs  = map (\(_,_,s) -> s) (sortBy orderClues clues)
-
-      -- since these arrays are row-major but that's the wrong order for
-      -- libpuz, we flip the indices first, which gets us a list in the
-      -- right order
-      gridSqs,solSqs :: [Square]
-      gridSqs = elems (ixmap ((0,0),(height-1,width-1)) 
-                             (\(a,b) -> (b,a)) grid)
-      solSqs  = elems (ixmap ((0,0),(height-1,width-1)) 
-                             (\(a,b) -> (b,a)) solution)
-
-      userBoard,solBoard :: [CUChar]
-      userBoard   = map squareToBoardChar gridSqs
-      solBoard    = map squareToBoardChar solSqs
-
-      extrasBoard :: Maybe [CUChar]
-      extrasBoard = gridToExtras solSqs
-
-      rebusInfo :: Maybe ([(String,Int)],[CUChar])
-      rebusInfo = gridToRebus solSqs
-  in
-  do puz <- puzCreate
-            
-     -- set the easy stuff that is marshalled by Internal
-     puzSetWidth     puz width
-     puzSetHeight    puz height
-
-     puzSetTitle     puz title
-     puzSetAuthor    puz author
-     puzSetNotes     puz notes
-     puzSetCopyright puz copyright
-
-     case timer of
-       Nothing -> return ()
-       Just (e,s) -> puzSetTimer puz e s
-
-     puzSetClueCount puz clueCount
-     mapM_ (\(n,c) -> puzSetClue puz n c) (zip [0..] clueStrs)
-
-     withArray userBoard (puzSetGrid puz)
-     withArray solBoard (puzSetSolution puz)
-
-     case extrasBoard of
-       Nothing -> return ()
-       Just b -> withArray b (puzSetExtras puz)
-       
-     case rebusInfo of
-       Nothing -> return ()
-       Just (rtbl,rbd) -> do withArray rbd (puzSetRebus puz)
-                             puzSetRtbl puz rtbl
-
-     case locked of
-       Nothing -> return ()
-       Just cksum -> puzLockSet puz cksum
-                             
-     puzCksumsCalc puz
-     puzCksumsCommit puz
-     cksumChk <- puzCksumsCheck puz
-
-     if not cksumChk 
-       then return $ Just "Internal Error: Checksum calculation failed." 
-       else
+savePuzzle fname puzzle =
+  do mpuz <- toPuz puzzle
+     case mpuz of
+       Left err -> return $ Just err
+       Right puz ->
          do sz <- puzSize puz
             allocaArray sz
               (\ ptr -> 
