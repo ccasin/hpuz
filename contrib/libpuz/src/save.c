@@ -39,7 +39,7 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
 
   s = puz_size(puz);
 
-  printf("Saving puzzle of size %d\n", s);
+  //printf("Saving puzzle of size %d\n", s);
 
   if(s > sz) {
     printf("Save failed: buffer not big enough.  Got %d bytes, needed %d\n", sz, s);
