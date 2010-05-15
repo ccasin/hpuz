@@ -177,7 +177,7 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
   puz->solution = calloc(sizeof(unsigned char), 1+bd_sz);
   Sstrncpy(puz->solution, base+i, bd_sz);
   puz->solution[bd_sz] = 0;
-  printf("%s\n\n", puz->solution);
+
   i += bd_sz;
 
   puz->grid = calloc(sizeof(unsigned char), 1+bd_sz);

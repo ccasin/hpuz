@@ -392,6 +392,7 @@ unsigned char * puz_notes_set(struct puzzle_t *puz, unsigned char *val) {
   free(puz->notes);
 
   puz->notes = Sstrdup(val);
+  puz->notes_sz = Sstrlen(val);
 
   return puz->notes;
 }
@@ -703,7 +704,7 @@ unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, unsigned char * val) {
     end = Sstrchr(start, ';'); // XXX this is fragile...bad input will hose this
 
     if (NULL == end) {
-      printf("Appear to have run out of rebus table entries: rebuses: %d, i: %d\n",
+      printf("Appear to have run out of rebus table entries: rebuses: %d, i: %d\nPlease report\n",
              puz->rtbl_sz, i);
 
       return NULL; /* XXX cleanup */
