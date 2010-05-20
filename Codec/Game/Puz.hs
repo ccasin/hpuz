@@ -418,11 +418,11 @@ unlockPuz puzzle code =
      case epuz of
        Left err -> return $ Left err
        Right puz -> 
-         do hadproblem <- puzUnlockSolution puz code
-            if hadproblem 
-              then return $ Left (   "Code " ++ show code 
-                                  ++ "didn't unlock the puzzle")
-              else liftM Right $ fromPuz puz
+         do worked <- puzUnlockSolution puz code
+            if worked
+              then liftM Right $ fromPuz puz
+              else return $ Left (   "Code " ++ show code 
+                                  ++ " didn't unlock the puzzle.")
 
 loadPuzzle :: String -> IO (Either Puzzle ErrMsg)
 loadPuzzle fname =
@@ -476,3 +476,4 @@ savePuzzle fname puzzle =
 
 stringCksum :: String -> IO CUShort
 stringCksum s = puzCksumString s (length s)
+
