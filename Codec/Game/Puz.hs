@@ -17,7 +17,7 @@ import Foreign.C
 import Foreign.Marshal.Array
 
 import Data.ByteString hiding (map,foldl,foldl',zip,zipWith,length,find,all,
-                               reverse)
+                               reverse,putStrLn)
 import Data.Array
 import Data.List
 import Data.Maybe

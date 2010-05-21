@@ -1043,7 +1043,6 @@ int unformat_unlocked_sol(struct puzzle_t* puz, unsigned char* formatted) {
   int board_sz = w*h;
   int len = Sstrlen(formatted);
 
-
   unsigned char* sol = puz_solution_get(puz);
 
   int i,j;
@@ -1051,7 +1050,7 @@ int unformat_unlocked_sol(struct puzzle_t* puz, unsigned char* formatted) {
 
   // XXX this could fail if we calculated something poorly (but shouldn't)
   for(i=0; i < w; i++) {
-    for(j=0; j < h; i++) {
+    for(j=0; j < h; j++) {
       if (sol[j*h + i] != '.') {
         sol[j*h + i] = formatted[index];
         index++;
@@ -1117,7 +1116,6 @@ int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
     e2 = unshift_string(workspace2, digits[i], workspace1);
     if(e1 || e2)
       return -4;
-
    
     for (j = 0; j < len; j++) {
       workspace1[j] -= digits[j % 4];
@@ -1138,7 +1136,6 @@ int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
     }
   }
   workspace2[j] = 0;
-
 
   unsigned short cksum = puz_cksum_region(workspace2, len, 0x0000);
   if (cksum != puz->header.scrambled_cksum) {
