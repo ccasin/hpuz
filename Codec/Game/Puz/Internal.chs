@@ -101,7 +101,11 @@ rtblOut ptr =
        case parse rtblParser "rebus table" str of
          Left err -> error ("Ill-formed puzzle file: " ++ show err)
          Right tbl -> return tbl
-    
+
+bruteForceOut :: CInt -> Maybe Int
+bruteForceOut i =
+  if i < 0 then Nothing
+           else Just $ fromIntegral i    
 
 
 {- puz struct creation, initialization -}
@@ -378,6 +382,13 @@ rtblOut ptr =
    ->
    `Bool' cerrToBool
  #}
+
+{# fun puz_brute_force_unlock as puzBruteForceUnlock
+   { puzIn* `Puz' }
+   ->
+   `Maybe Int' bruteForceOut
+ #}
+
 
 ------
 ------ C2HS stuff - why isn't there a C2HS module

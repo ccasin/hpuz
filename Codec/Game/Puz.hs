@@ -4,7 +4,8 @@ module Codec.Game.Puz
         Dir (Across,Down), Puzzle (Puzzle), Index,
         width,height,grid,solution,title,author,notes,
         copyright,timer,clues,locked,
-        numberGrid,unlockPuz,loadPuzzle,savePuzzle,stringCksum)
+        numberGrid,unlockPuz,bruteForceUnlockPuz,
+        loadPuzzle,savePuzzle,stringCksum)
 where
 
 import Codec.Game.Puz.Internal
@@ -423,6 +424,20 @@ unlockPuz puzzle code =
               then liftM Right $ fromPuz puz
               else return $ Left (   "Code " ++ show code 
                                   ++ " didn't unlock the puzzle.")
+
+bruteForceUnlockPuz :: Puzzle -> IO (Either ErrMsg (Puzzle,Int))
+bruteForceUnlockPuz puzzle =
+  do epuz <- toPuz puzzle
+     case epuz of
+       Left err -> return $ Left err
+       Right puz -> 
+         do worked <- puzBruteForceUnlock puz
+            case worked of
+              Nothing -> return $ Left $    
+                   "Sorry, no possible code successfully unlocked this "
+                ++ "puzzle.  It may be ill-formed."
+              Just code -> do puz' <- fromPuz puz
+                              return $ Right (puz',code)
 
 loadPuzzle :: String -> IO (Either Puzzle ErrMsg)
 loadPuzzle fname =

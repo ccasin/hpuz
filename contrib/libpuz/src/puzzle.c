@@ -1061,7 +1061,6 @@ int unformat_unlocked_sol(struct puzzle_t* puz, unsigned char* formatted) {
   return 0;
 }
 
-
 /**
  * puz_unlock_puzzle - unlock a puzzle with a key
  *
@@ -1152,4 +1151,37 @@ int puz_unlock_solution(struct puzzle_t* puz, unsigned short code) {
   free(workspace2);
   
   return 0;
+}
+
+
+/**
+ * puz_brute_force_unlock - unscramble a locked puzzle without the key
+ *
+ * @puz: a pointer to the struct puzzle_t to check (required) 
+ *
+ * On success, returns the correct code.  Otherwise, it returns an
+ * integer less than 0.
+ */
+int puz_brute_force_unlock(struct puzzle_t* puz) {
+  // make sure we were given a puzzle that's scrambled
+  if(NULL == puz)
+    return -1;
+  if(!(puz->header.scrambled_tag))
+    return -2;
+
+
+  int code = 1111;
+  int great_success;
+  for (; code++; code < 10000) {
+    great_success = puz_unlock_solution(puz,code);
+    if(!great_success) {
+      break;
+    }
+  }
+
+  if(great_success) {
+    return -3;
+  } else {
+    return code;
+  }
 }

@@ -225,5 +225,6 @@ unsigned short puz_locked_cksum_get(struct puzzle_t *puz);
 unsigned short puz_lock_set(struct puzzle_t *puz, unsigned short cksum);
 
 int puz_unlock_solution(struct puzzle_t* puz, unsigned short code);
+int puz_brute_force_unlock(struct puzzle_t* puz);
 
 #endif /* ndef __LIBPUZ_H__ */
