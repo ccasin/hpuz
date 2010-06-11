@@ -118,6 +118,149 @@ static struct puz_head_t *read_puz_head(struct puz_head_t *h, unsigned char *bas
   return h;
 }
 
+// Each of these special section readers return the actual number
+// of bytes they advance.  A 0 signals an error
+
+/**
+ * load_grbs_bin - Reads the GRBS and RTBL sections
+ *
+ * @puz: pointer to the struct puzzle_t to fill in.  Must not be NULL
+ * @base: pointer to the buffer containing the puzzle to load from
+ * @sz: expected size of the GRBS section, not counting the RTBL.
+ * 
+ * This is an internal function
+ *
+ * Return value: The number of bytes read, or 0 on an error.
+ */
+unsigned int load_grbs_bin(struct puzzle_t *puz, unsigned char *base,
+                           unsigned short sz) {
+  if(NULL == puz) {
+    return 0;
+  }
+
+  int i = 0;
+  int bd_sz = puz->header.width*puz->header.height;
+
+  puz->grbs_cksum = le_16(base+i);
+  i += 2;
+
+  // rebus grid
+  puz->grbs = (unsigned char*) malloc(bd_sz * sizeof(unsigned char));
+  if(NULL == puz->grbs) {
+    return 0;
+  }
+
+  memcpy(puz->grbs, base+i, bd_sz);
+  i += bd_sz;
+  i += 1; // NULL terminator
+
+  // check if there actually are any rebuses
+  int rbssum = 0;
+  int rbsj = 0;
+  for (; rbsj < bd_sz; rbsj++) {
+    rbssum += puz->grbs[rbsj];
+  }
+  // if rbssum is 0, the rebus grid is empty and should be ignored
+  if (rbssum == 0) {
+    free(puz -> grbs);
+    puz -> grbs = NULL;
+  }        
+    
+  if (0 != Sstrncmp(base+i,"RTBL",4)) {
+    if (rbssum != 0) {
+      printf("Rebus grid is missing a rebus table: sz: %d, i: %d\n", sz, i);
+      free(puz->grbs);
+      return 0;
+    }
+  } else {
+    i += 4; // skip RTBL
+
+    // parse size of the RTBL itself...this is NOT the number of entries
+    // we don't _technically_ need it, but we keep it as a sanity check
+    unsigned int rtbl_strsz = le_16(base+i);
+    i += 2;
+
+    if (rbssum != 0) {
+      puz->rtbl_cksum = le_16(base+i);
+    }
+    i += 2;
+
+
+    // load the rebus table from its string representation
+    if (rbssum != 0) {
+      puz_rtblstr_set(puz, base + i);
+    }
+    i += rtbl_strsz;
+
+    i += 1; // NULL terminator
+  }
+
+  return i;
+}
+
+/**
+ * load_ltim_bin - Reads the LTIM section
+ *
+ * @puz: pointer to the struct puzzle_t to fill in.  Must not be NULL
+ * @base: pointer to the buffer containing the LTIM section
+ * @ltim_sz: expected size of the LTIM section
+ * 
+ * This is an internal function
+ *
+ * Return value: The number of bytes read, or 0 on an error.
+ */
+unsigned int load_ltim_bin(struct puzzle_t *puz, unsigned char *base,
+                           unsigned short ltim_sz) {
+  if(NULL == puz) {
+    return 0;
+  }
+
+  int i = 0;
+  int bd_sz = puz->header.width*puz->header.height;
+
+  puz->ltim_cksum = le_16(base+i);
+  i += 2;
+
+  puz->ltim = calloc(sizeof(unsigned char), ltim_sz+1);
+  Sstrncpy(puz->ltim, base+i, ltim_sz);
+
+  i += ltim_sz + 1;
+
+  return i;
+}
+
+/**
+ * load_gext_bin - Reads the GEXT section
+ *
+ * @puz: pointer to the struct puzzle_t to fill in.  Must not be NULL
+ * @base: pointer to the buffer containing the gext section
+ * @ltim_sz: expected size of the GEXT section
+ * 
+ * This is an internal function
+ *
+ * Return value: The number of bytes read, or 0 on an error.
+ */
+unsigned int load_gext_bin(struct puzzle_t *puz, unsigned char *base,
+                           unsigned short gext_sz) {
+  if(NULL == puz) {
+    return 0;
+  }
+
+  int i = 0;
+  int bd_sz = puz->header.width*puz->header.height;
+
+  puz->gext_cksum = le_16(base+i);
+  i += 2;
+
+  // extras grid
+  puz->gext = (unsigned char *) malloc(bd_sz * sizeof(unsigned char));
+  memcpy(puz->gext, base+i, bd_sz);
+  i += bd_sz;
+
+  i += 1; // NULL terminator
+
+  return i;
+}
 
 
 
@@ -242,116 +385,46 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
    * Unsupported ones include:
    * RUSR (user entered rebus solutions)
    * 
+   * We support these section in any order, except that RTBL must
+   * immediately follow GRBS
    * XXX We only support these sections at all if they occur in
    * a certain order.  I'm not sure they really must come in that order.
    */
 
-  // GRBS/RTBL
   puz->grbs = NULL;
   puz->rtbl = NULL;
   puz->rtbl_sz = 0;
 
-  if (i < sz) {
-    if (0 == Sstrncmp(base+i,"GRBS",4)) {
-      i += 4; // skip GRBS
-      i += 2; // skip size; XXX should check
-
-      puz->grbs_cksum = le_16(base+i);
-      i += 2;
-
-      // rebus grid
-      puz->grbs = (unsigned char*) malloc(bd_sz * sizeof(unsigned char));
-      // XXX could fail
-      memcpy(puz->grbs, base+i, bd_sz);
-      i += bd_sz;
-      i += 1; // NULL terminator
-
-      // check if there actually are any rebuses
-      int rbssum = 0;
-      int rbsj = 0;
-      for (; rbsj < bd_sz; rbsj++) {
-        rbssum += puz->grbs[rbsj];
-      }
-      // if rbssum is 0, the rebus grid is empty and should be ignored
-      if (rbssum == 0) {
-        free(puz -> grbs);
-        puz -> grbs = NULL;
-      }        
-        
-      if (0 != Sstrncmp(base+i,"RTBL",4)) {
-        if (rbssum != 0) {
-          printf("Rebus grid is missing a rebus table: sz: %d, i: %d\n", sz, i);
-  
-          if(didmalloc) {
-            free(puz);
-            puz = NULL;
-          }
-  
-          return NULL; /* XXX cleanup */
-        }
-      } else {
-        i += 4; // skip RTBL
-
-        // parse size of the RTBL itself...this is NOT the number of entries
-        // we don't _technically_ need it, but we keep it as a sanity check
-        rtbl_strsz = le_16(base+i);
-        i += 2;
-  
-        if (rbssum != 0) {
-          puz->rtbl_cksum = le_16(base+i);
-        }
-        i += 2;
-  
-  
-        // load the rebus table from its string representation
-        if (rbssum != 0) {
-          puz_rtblstr_set(puz, base + i);
-        }
-        i += rtbl_strsz;
-  
-        i += 1; // NULL terminator
-      }
-    }
-  }
-
-  // LTIM
   puz->ltim=NULL;
 
-  if (i < sz) {
-    if (0 == Sstrncmp(base+i,"LTIM",4)) {
-      unsigned short ltim_sz;
+  puz->gext=NULL;
 
-      i += 4; // skip LTIM
+  unsigned short section_sz;
+  unsigned int advance;
 
-      ltim_sz = le_16(base+i);
-      i += 2;
-
-      puz->ltim_cksum = le_16(base+i);
-      i += 2;
-
-      puz->ltim = calloc(sizeof(unsigned char), ltim_sz+1);
-      Sstrncpy(puz->ltim, base+i, ltim_sz);
-
-      i += ltim_sz + 1;
+  while (i+5 < sz) {
+    // get the size of the section to come
+    section_sz = le_16(base+i+4);
+    if (0 == Sstrncmp(base+i,"GRBS",4)) {
+      advance = load_grbs_bin(puz,base+i+6,section_sz);
+    } else if (0 == Sstrncmp(base+i,"LTIM",4)) {
+      advance = load_ltim_bin(puz,base+i+6,section_sz);
+    } else if (0 == Sstrncmp(base+i,"GEXT",4)) {
+      advance = load_gext_bin(puz,base+i+6,section_sz);
+    } else {
+      printf("Warning: unknown board section %.4s", base+i);
+      i += 6 + section_sz + 1;
+      continue;
     }
-  }
-
-  // GEXT
-  if (i < sz) {
-    if (0 == Sstrncmp(base+i,"GEXT",4)) {
-      i += 4; // skip GEXT
-      i += 2; // skip size; XXX should check
-
-      puz->gext_cksum = le_16(base+i);
-      i += 2;
-
-      // extras grid
-      puz->gext = (unsigned char *) malloc(bd_sz * sizeof(unsigned char));
-      memcpy(puz->gext, base+i, bd_sz);
-      i += bd_sz;
-
-      i += 1; // NULL terminator
+    if (advance == 0) {
+      printf("Error reading %.4s section", base+i);
+      if(didmalloc) {
+        free(puz);
+        puz = NULL;
+        break;
+      }
     }
+    i += 6 + advance;
   }
 
   return puz;
