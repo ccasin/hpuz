@@ -20,6 +20,7 @@ static unsigned short puz_cksum2(struct puzzle_t *puz, unsigned short cksum);
 static void magic_gen_10(unsigned char *dest, unsigned short *sums);
 static void magic_gen_14(unsigned char *dest, unsigned short *sums);
 static unsigned short rtbl_gen(struct puzzle_t *puz);
+static unsigned short rusr_gen(struct puzzle_t *puz);
 
 /**
  * puz_cksum_region - Checksum a region using PUZ's rotate-and-sum
@@ -297,14 +298,30 @@ static void magic_gen_14(unsigned char *dest, unsigned short *sums) {
   return;
 }
 
+/* rtbl_gen and rusr_gen calculate the checksums for sections that we
+   aren't storing in their binary form */
 static unsigned short rtbl_gen(struct puzzle_t *puz) {
   unsigned char *rtbl_str;
   unsigned short ck;
 
-  rtbl_str = puz_rtblstr_get(puz); // XXX might return NULL
+  rtbl_str = puz_rtblstr_get(puz);
   if (rtbl_str) {
     ck = puz_cksum_region(rtbl_str, Sstrlen(rtbl_str), 0x0000);
     free(rtbl_str);
+    return ck;
+  } else {
+    return 0;
+  }
+}
+
+static unsigned short rusr_gen(struct puzzle_t *puz) {
+  unsigned char *rusr_str;
+  unsigned short ck;
+
+  rusr_str = puz_rusrstr_get(puz);
+  if (rusr_str) {
+    ck = puz_cksum_region(rusr_str, puz->rusr_sz, 0x0000);
+    free(rusr_str);
     return ck;
   } else {
     return 0;
@@ -337,10 +354,10 @@ int puz_cksums_calc(struct puzzle_t *puz) {
   cib = puz_cksum_cib(puz);
   puzcib = puz_cksum(puz, cib);
 
-  grid = puz_cksum_region(puz->grid, puz->header.width*puz->header.height,
-                          0x0000);
-  soln = puz_cksum_region(puz->solution, puz->header.width*puz->header.height,
-                          0x0000);
+  int bd_size = puz->header.width*puz->header.height;
+
+  grid = puz_cksum_region(puz->grid, bd_size, 0x0000);
+  soln = puz_cksum_region(puz->solution, bd_size, 0x0000);
 
   // printf("Cksums: %04x %04x %04x %04x\n", soln, cib, puz0, grid);
 
@@ -356,8 +373,7 @@ int puz_cksums_calc(struct puzzle_t *puz) {
 
   if (puz_has_rebus(puz)) {
     puz->calc_grbs_cksum = 
-      puz_cksum_region(puz->grbs, puz->header.width*puz->header.height,
-                       0x0000);
+      puz_cksum_region(puz->grbs, bd_size, 0x0000);
     puz->calc_rtbl_cksum = rtbl_gen(puz);
   }
 
@@ -368,8 +384,11 @@ int puz_cksums_calc(struct puzzle_t *puz) {
 
   if (puz_has_extras(puz)) {
     puz->calc_gext_cksum = 
-      puz_cksum_region(puz->gext, puz->header.width*puz->header.height, 
-                       0x0000);
+      puz_cksum_region(puz->gext, bd_size, 0x0000);
+  }
+
+  if (puz_has_rusr(puz)) {
+    puz->calc_rusr_cksum = rusr_gen(puz);
   }
 
   return 0;
@@ -453,6 +472,14 @@ int puz_cksums_check(struct puzzle_t *puz) {
     }
   }
 
+  if (puz_has_rusr(puz)) {
+    if(puz->rusr_cksum != puz->calc_rusr_cksum) {
+      printf("RUSR checksum differs: got %02x, calc %02x\n", 
+             puz->rusr_cksum, puz->calc_rusr_cksum);
+      retval++;
+    }
+  }
+
   return retval;
 }
 
@@ -487,6 +514,10 @@ int puz_cksums_commit(struct puzzle_t *puz) {
 
   if (puz_has_extras(puz)) {
     puz->gext_cksum = puz->calc_gext_cksum;
+  }
+
+  if (puz_has_rusr(puz)) {
+    puz->rusr_cksum = puz->calc_rusr_cksum;
   }
 
   return 0;

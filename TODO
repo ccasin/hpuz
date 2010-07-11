@@ -1,4 +1,5 @@
 
-- we're really not passing along any error conditions at all, and this
-  must be fixed.
+- we're not being consistent about error messages
+- we're not always robust to bad input
 - better documentation
+- rusr needs save handling, and testing

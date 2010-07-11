@@ -353,6 +353,22 @@ bruteForceOut i =
  #}
 
 
+{# fun puz_has_rusr as puzHasRusr
+   { puzIn* `Puz' } -> `Bool' cintToBool
+ #}
+
+{# fun puz_rusr_get as puzGetRusr
+   { puzIn* `Puz' } -> `Ptr (Ptr CUChar)' id
+ #}
+
+{# fun puz_rusr_set as puzSetRusr
+   { puzIn* `Puz'
+   , id `Ptr (Ptr CUChar)' } 
+   ->
+   `()'
+ #}
+
+
 {# fun puz_is_locked_get as puzIsLockedGet
    { puzIn* `Puz' } -> `Bool' cintToBool
  #}
@@ -367,6 +383,7 @@ bruteForceOut i =
    ->
    `()'
  #}
+
 
 {# fun puz_cksum_region as puzCksumString
    { stringIn* `String'

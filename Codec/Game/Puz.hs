@@ -18,7 +18,7 @@ import Foreign.C
 import Foreign.Marshal.Array
 
 import Data.ByteString hiding (map,foldl,foldl',zip,zipWith,length,find,all,
-                               reverse,putStrLn)
+                               reverse,putStrLn,replicate)
 import Data.Array
 import Data.List
 import Data.Maybe
@@ -120,19 +120,22 @@ charToCUChar = toEnum . fromEnum
 
 -- The bool is true of this is a game board and false if it is a solution
 -- board
-charToSquare :: Bool -> [(Int,String)] -> CUChar -> CUChar -> CUChar ->
-                Square
-charToSquare isGame rtbl sq rbs ext =
+charToSquare :: Bool -> [(Int,String)] -> CUChar -> CUChar -> CUChar
+             -> Maybe String -> Square
+charToSquare isGame rtbl sq rbs ext rusr =
     if sq == blackChar then Black 
     else
-      case rebus of
-        Just str -> if isGame then 
-                        let str' = if sq == blankChar then []
-                                   else [cucharToChar sq]
-                        in Rebus str' style
-                    else Rebus str style
-        Nothing -> if sq == blankChar then Letter Nothing style
-                     else Letter (Just $ cucharToChar sq) style
+      if isGame then
+         case (rusr,rebus) of
+           (Just str, _) -> Rebus str style
+           (_, Just _)   -> 
+              let str' = if sq == blankChar then [] else [cucharToChar sq] 
+              in Rebus str' style
+           (_,_)         -> dflt
+      else
+         case rebus of
+           Just str -> Rebus str style
+           Nothing  -> dflt
   where
     style = case charToStyle ext of
               Just s  -> s
@@ -143,7 +146,9 @@ charToSquare isGame rtbl sq rbs ext =
                      Nothing -> error ("Puzzle file contains ill-formed " ++
                                        "rebus section")
                      Just str -> Just str
-    
+
+    dflt  =  if sq == blankChar then Letter Nothing style
+                                else Letter (Just $ cucharToChar sq) style
 
 squareToBoardChar :: Square -> CUChar
 squareToBoardChar Black        = blackChar
@@ -190,28 +195,35 @@ gridToRebus sqs =
 --
 -- The bool should be True if this is a game board and false if it is a
 -- solution board. 
+--
+-- gameOrSol  squares  grbs  rtbl  rtbl  gext  rusr
 readBoard :: Bool -> Array Index CUChar -> Array Index CUChar 
           -> [(Int,String)] -> Array Index CUChar 
+          -> Array Index (Maybe String)
           -> Array Index Square
-readBoard isGame bd rbs rtbl ext = 
+readBoard isGame bd rbs rtbl ext rusr = 
     let convChar = charToSquare isGame rtbl in
       array (bounds bd) 
-            (map (\(i,c) -> (i,convChar c (rbs ! i) (ext ! i)))
+            (map (\(i,c) -> (i,convChar c (rbs ! i) (ext ! i) (rusr ! i)))
                  (assocs bd))
 
-boardCharsOut :: Int -> Int -> Ptr CUChar -> IO (Array Index CUChar)
-boardCharsOut width height ptr =
+-- width, height.  List had better be the right length
+listToBoard :: Int -> Int -> [a] -> Array Index a
+listToBoard width height la =
   let -- these guys are in row-major order, so we need to flip
-      numberFold :: (Int,Int,[(Index,a)]) -> a->
+      numberFold :: (Int,Int,[(Index,a)]) -> a ->
                     (Int,Int,[(Index,a)])
       numberFold (x,y,l) sq = 
         let (x',y') = if x+1 == width then (0,y+1) else (x+1,y) in
           (x',y',(((x,y),sq):l))
   in
-  do cuchars <- peekArray (width*height) ptr
+    array ((0,0),(width-1,height-1)) $ (\(_,_,l) -> l) $
+          foldl' numberFold (0,0,[]) la
 
-     return $ array ((0,0),(width-1,height-1)) $
-                (\(_,_,l) -> l) $ foldl' numberFold (0,0,[]) cuchars
+boardCharsOut :: Int -> Int -> Ptr CUChar -> IO (Array Index CUChar)
+boardCharsOut width height ptr =
+  do cuchars <- peekArray (width*height) ptr
+     return $ listToBoard width height cuchars
 
 numberClues :: [String] -> Array Index Square -> [(Int,Dir,String)]
 numberClues cls bd =
@@ -243,6 +255,17 @@ numberClues cls bd =
         rec = case nextind of Nothing -> []
                               Just ind -> findclues nextnum ind
 
+-- fromRusr and toRusr go between the internal rusr format (a uchar **)
+-- and the one more convenient for us (a [Maybe String])
+fromRusr :: Int -> Ptr (Ptr CUChar) -> IO [Maybe String]
+fromRusr len arr =
+    do ptrs <- peekArray len arr
+       mapM (\ptr -> if ptr == nullPtr then return Nothing
+                        else do chrs <- peekArray0 0 ptr 
+                                return $ Just $ map cucharToChar chrs)
+            ptrs
+
+
 -- These internal functions, fromPuz and toPuz, martial between
 -- the internal Puz pointers and the exposed Puzzle datastructure
 
@@ -250,9 +273,11 @@ fromPuz :: Puz -> IO Puzzle
 fromPuz puz = 
   do width  <- puzGetWidth puz
      height <- puzGetHeight puz
-     let bdChrs = boardCharsOut width height
-         emptyBd = listArray ((0,0),(width-1,height-1)) (repeat $ toEnum 0)
-     
+     let bdChrs   = boardCharsOut width height
+         emptyBd  = listArray ((0,0),(width-1,height-1)) (repeat $ toEnum 0)
+         bdSize   = width*height
+         nothings = replicate bdSize Nothing
+
      -- Now get all the raw strings we need from the internal 
      -- puz structure
      gridChrs  <- puzGetGrid puz >>= bdChrs
@@ -264,16 +289,21 @@ fromPuz puz =
      notes     <- puzGetNotes puz
 
      hasTimer  <- puzHasTimer puz
-     timer    <- if hasTimer 
-                   then liftM2 (\x y -> Just (x,y)) 
-                          (puzGetTimerElapsed puz) 
-                          (puzGetTimerStopped puz)
-                   else return Nothing
+     timer     <- if hasTimer 
+                    then liftM2 (\x y -> Just (x,y)) 
+                           (puzGetTimerElapsed puz) 
+                           (puzGetTimerStopped puz)
+                    else return Nothing
      
      hasRebus  <- puzHasRebus puz
      rebusChrs <- if hasRebus then puzGetRebus puz >>= bdChrs
                               else return emptyBd
      rebusTbl  <- if hasRebus then puzGetRtbl puz else return []
+
+     hasRusr   <- puzHasRusr puz
+     rusrList  <- if hasRusr then puzGetRusr puz >>= fromRusr bdSize
+                             else return nothings
+     let rusrBoard = listToBoard width height rusrList
      
      hasExtras <- puzHasExtras puz
      extraChrs <- if hasExtras then puzGetExtras puz >>= bdChrs
@@ -290,7 +320,9 @@ fromPuz puz =
      -- need to build a Puzzle
      let grid, solution :: Array Index Square
          grid     = readBoard True gridChrs rebusChrs rebusTbl extraChrs
+                              rusrBoard
          solution = readBoard False solChrs rebusChrs rebusTbl extraChrs
+                              rusrBoard
      
          clues :: [(Int,Dir,String)]
          clues = numberClues clueStrs grid
@@ -464,10 +496,10 @@ loadPuzzle fname =
          case mpuz of
            Nothing -> return $ Right "Ill-formed puzzle"
            Just puz -> 
-             puzCksumsCheck puz >>= 
+            (puzCksumsCheck puz >>= 
                \v -> if not v 
                        then return $ Right "Ill-formed puzzle: bad checksums"
-                       else liftM Left $ fromPuz puz
+                       else liftM Left $ fromPuz puz)
 
 savePuzzle :: String -> Puzzle -> IO (Maybe ErrMsg)
 savePuzzle fname puzzle =

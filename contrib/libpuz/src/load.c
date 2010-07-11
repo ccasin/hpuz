@@ -234,7 +234,7 @@ unsigned int load_ltim_bin(struct puzzle_t *puz, unsigned char *base,
  *
  * @puz: pointer to the struct puzzle_t to fill in.  Must not be NULL
  * @base: pointer to the buffer containing the gext section
- * @ltim_sz: expected size of the GEXT section
+ * @gext_sz: expected size of the GEXT section
  * 
  * This is an internal function
  *
@@ -257,6 +257,54 @@ unsigned int load_gext_bin(struct puzzle_t *puz, unsigned char *base,
   memcpy(puz->gext, base+i, bd_sz);
   i += bd_sz;
 
+  i += 1; // NULL terminator
+
+  return i;
+}
+
+/**
+ * load_rusr_bin - Reads the RUSR section
+ *
+ * @puz: pointer to the struct puzzle_t to fill in.  Must not be NULL
+ * @base: pointer to the buffer containing the gext section
+ * @rusr_sz: expected size of the RUSR section
+ * 
+ * This is an internal function
+ *
+ * Return value: The number of bytes read, or 0 on an error.
+ */
+unsigned int load_rusr_bin(struct puzzle_t *puz, unsigned char *base,
+                           unsigned short rusr_sz) {
+  if(NULL == puz) {
+    return 0;
+  }
+
+  int i = 0;
+  int bd_sz = puz->header.width*puz->header.height;
+
+  puz->rusr_cksum = le_16(base+i);
+  i += 2;
+
+  // rusr grid
+  puz->rusr = (unsigned char **) malloc(bd_sz * sizeof(unsigned char *));
+  int j;
+  for(j = 0; j < bd_sz; j++) {
+    if(base[i]) {
+      int len = Sstrlen(base+i);
+      // these strings are required to be null terminated...
+      // but of course we could be given an ill-formed file, so
+      // we use a max size (100) for fun.
+      char* usr_rebus = Sstrndup(base+i, 
+                                 MAX_REBUS_SIZE * (sizeof(unsigned char)));
+      puz->rusr[j] = usr_rebus;
+      i += Sstrlen(usr_rebus) + 1;
+    } else {
+      puz->rusr[j] = NULL;
+      i++;
+    }
+  }
+  
+  puz->rusr_sz = i - 2;
   i += 1; // NULL terminator
 
   return i;
@@ -381,14 +429,10 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
    * GRBS/RTBL (rebus stuff)
    * GEXT      (circled squares, incorrect flags)
    * LTIM      (time)
-   * 
-   * Unsupported ones include:
-   * RUSR (user entered rebus solutions)
+   * RUSR      (user entered rebus solutions)
    * 
    * We support these section in any order, except that RTBL must
    * immediately follow GRBS
-   * XXX We only support these sections at all if they occur in
-   * a certain order.  I'm not sure they really must come in that order.
    */
 
   puz->grbs = NULL;
@@ -398,6 +442,9 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
   puz->ltim=NULL;
 
   puz->gext=NULL;
+
+  puz->rusr=NULL;
+  puz->rusr_sz=0;
 
   unsigned short section_sz;
   unsigned int advance;
@@ -411,6 +458,8 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
       advance = load_ltim_bin(puz,base+i+6,section_sz);
     } else if (0 == Sstrncmp(base+i,"GEXT",4)) {
       advance = load_gext_bin(puz,base+i+6,section_sz);
+    } else if (0 == Sstrncmp(base+i,"RUSR",4)) {
+      advance = load_rusr_bin(puz,base+i+6,section_sz);
     } else {
       printf("Warning: unknown board section %.4s", base+i);
       i += 6 + section_sz + 1;

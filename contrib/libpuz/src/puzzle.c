@@ -68,9 +68,11 @@ int puz_size(struct puzzle_t *puz) {
   if(!puz)
     return -1;
 
+  int board_size = puz_width_get(puz) * puz_height_get(puz);
+
   sz = 0x34; // header
-  sz += puz_width_get(puz) * puz_height_get(puz); // solution
-  sz += puz_width_get(puz) * puz_height_get(puz); // grid
+  sz += board_size;
+  sz += board_size;
   sz += Sstrlen(puz_title_get(puz)) + 1;  // title
   sz += Sstrlen(puz_author_get(puz)) + 1; // author
   sz += Sstrlen(puz_copyright_get(puz)) + 1; // copyright
@@ -87,7 +89,7 @@ int puz_size(struct puzzle_t *puz) {
     sz += 4; // GRBS
     sz += 2; // board size
     sz += 2; // checksum
-    sz += puz_width_get(puz) * puz_height_get(puz); // rebus grid
+    sz += board_size; // rebus grid
     sz += 1; // NULL
 
     sz += 4; // RTBL
@@ -115,8 +117,16 @@ int puz_size(struct puzzle_t *puz) {
     sz += 2; // size
     sz += 2; // checksum
     
-    sz += puz_width_get(puz) * puz_height_get(puz); // extras grid
+    sz += board_size; // extras grid
     sz += 1; // NULL
+  }
+
+  if (puz_has_rusr(puz)) {
+    sz += 4; // RUSR
+    sz += 2; // size
+    sz += 2; // checksum
+    sz += puz->rusr_sz; //data
+    sz++;  // NULL
   }
 
   return sz;
@@ -396,9 +406,6 @@ unsigned char * puz_notes_set(struct puzzle_t *puz, unsigned char *val) {
 
   return puz->notes;
 }
-
-
-
 
 
 /**
@@ -865,6 +872,107 @@ unsigned char * puz_extras_set(struct puzzle_t *puz, unsigned char *val) {
   return puz->gext;
 }
 
+
+/**
+ * puz_has_rusr -- checks if a puzzle has an rusr board
+ * 
+ * @puz: a pointer to the struct puzzle_t to read from (required)
+ *
+ * Returns 1 if the puzzle has an rusr board, 0 if not or if the
+ * puzzle is NULL
+ */
+int puz_has_rusr(struct puzzle_t *puz) {
+  if(NULL == puz) {
+    return 0;
+  }
+
+  return (NULL != puz->rusr);
+}
+
+/**
+ * puz_rusr_get - get the puzzle's rusr grid
+ *
+ * @puz: a pointer to the struct puzzle_t to read from (required)
+ *
+ * Returns NULL on error or if field is unset.
+ */
+unsigned char ** puz_rusr_get(struct puzzle_t *puz) {
+  if(NULL == puz)
+    return NULL;
+
+  return puz->rusr;
+}
+
+/**
+ * puz_rusr_set - set the puzzle's extras grid
+ *
+ * @puz: a pointer to the struct puzzle_t to write to (required)
+ * @val: a pointer to the value (required)
+ * 
+ * returns NULL on error, else a pointer to the struct's copy of the input
+ */
+unsigned char ** puz_rusr_set(struct puzzle_t *puz, unsigned char ** val) {
+  if(NULL == puz || NULL == val)
+    return NULL;
+
+  if (puz->rusr)
+    free(puz->rusr);   // XXX need to deeply free
+  puz->rusr = NULL;
+
+  int puz_sz = puz_width_get(puz) * puz_height_get(puz);
+  unsigned char ** rusr = malloc(puz_sz * sizeof (unsigned char*));
+  if(NULL == rusr) {
+    return NULL;
+  }
+
+  int rusr_sz = puz_sz;
+  int i;
+  for(i = 0; i < puz_sz; i++) {
+    if(NULL == val[i]) {
+      rusr[i] = NULL;
+    } else {
+      rusr[i] = Sstrndup(val[i],MAX_REBUS_SIZE);
+      rusr_sz += Sstrlen(rusr[i]);
+    }
+  }
+
+  puz->rusr = rusr;
+  puz->rusr_sz = rusr_sz;
+  return puz->rusr;
+}
+
+/**
+ * puz_rusrstr_get - get the binary form of the rusr
+ * 
+ * @puz: a pointer to the struct puzzle_t
+ *
+ * returns a malloced string if possible, and otherwise NULL
+ */
+unsigned char* puz_rusrstr_get(struct puzzle_t *puz) {
+  if (NULL == puz || NULL == puz->rusr)
+    return NULL;
+
+  int board_sz = puz->header.width * puz->header.height;
+
+  unsigned char* rusrstr = malloc( (puz->rusr_sz) * sizeof(unsigned char) );
+
+  int i,j = 0;
+  for(j = 0; j < board_sz; j++) {
+    if(NULL == puz->rusr[j]) {
+      rusrstr[i] = 0;
+    } else {
+      // here we are allowed to not check length, because we did
+      // that when we made the rusr board we're outputting
+      Sstrcpy(rusrstr+i, puz->rusr[j]);
+      int len = Sstrlen(puz->rusr[j]);
+      i += len;
+      rusrstr[i+len] = 0;
+    }
+    i++;
+  }
+  return rusrstr;
+
+}
 
 /**
  * puz_is_locked_get - check if the puzzle's solution is scrambled

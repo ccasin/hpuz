@@ -110,6 +110,17 @@ struct puzzle_t {
   unsigned short gext_cksum;
   unsigned short calc_gext_cksum;
   unsigned char *gext;  /* circled squares */
+
+  unsigned short rusr_cksum;
+  unsigned short calc_rusr_cksum;
+  unsigned char **rusr; /* rusr table - one (possibly null) entry per square */ 
+  unsigned int   rusr_sz;
+  /* The rusr board is an array of strings.  The squares without rusr
+     entries will be NULL, rather than a pointer to an empty string.
+     We cache the size of its representation in the binary because
+     we have to calculate it several times.  This does not include
+     the size of the null terminator for the whole rusr data section */
+     
 };
 
 #define PUZ_FILE_BINARY 1
@@ -141,10 +152,15 @@ struct puzzle_t {
 #define GEXT_NORMAL  0
 #define GEXT_CIRCLED 128
 
+#define MAX_REBUS_SIZE 100
+  /* the max size of a rebus string, in unsigned chars */
+
 /* Sign-ified str ops to silence GCC4 signedness warnings */
 #define Sstrlen(x) strlen((char *)(x))
 #define Sstrdup(x) (unsigned char *)strdup((char *)(x))
+#define Sstrndup(x,n) (unsigned char *)strndup((char *)(x),(n))
 #define Sstrncpy(dest,src,n) ((unsigned char*)strncpy((char *)(dest),(char *)(src),(n)))
+#define Sstrcpy(dest,src) ((unsigned char*)strcpy((char *)(dest),(char *)(src)))
 #define Sstrchr(x,c) (unsigned char *)strchr((char *)(x), (c))
 #define Satoi(x) atoi((char *)(x))
 #define Sstrncmp(s1,s2,n) (int)strncmp((char *)(s1),(char *)(s2),n)
@@ -204,6 +220,12 @@ unsigned char * puz_rebus_set(struct puzzle_t *puz, unsigned char * val);
 int puz_rebus_count_set(struct puzzle_t *puz, int val);
 int puz_rebus_count_get(struct puzzle_t *puz);
 
+/* we provide two methods of interfacing with the rtable - a nice one
+ * that deals with its logical structure (rtbl_get and set), and one
+ * that deals with the raw binary representation (rtblstr_get and
+ * set).  We actually store things in the logical way, so the former
+ * are more efficient for the user.
+ */
 unsigned char * puz_rtbl_get(struct puzzle_t *puz, int n);
 unsigned char * puz_rtbl_set(struct puzzle_t *puz, int n, unsigned char * val);
 
@@ -216,9 +238,15 @@ int puz_timer_stopped_get(struct puzzle_t *puz);
 unsigned char * puz_timer_set(struct puzzle_t *puz, int elapsed, int stopped);
 
 int puz_has_extras(struct puzzle_t *puz);
-
 unsigned char * puz_extras_get(struct puzzle_t *puz);
 unsigned char * puz_extras_set(struct puzzle_t *puz, unsigned char * val);
+
+int puz_has_rusr(struct puzzle_t *puz);
+unsigned char ** puz_rusr_get (struct puzzle_t *puz);
+unsigned char ** puz_rusr_set (struct puzzle_t *puz, unsigned char ** val);
+
+// gets the binary form of the rusr structure
+unsigned char * puz_rusrstr_get (struct puzzle_t *puz);
 
 int puz_is_locked_get(struct puzzle_t *puz);
 unsigned short puz_locked_cksum_get(struct puzzle_t *puz);

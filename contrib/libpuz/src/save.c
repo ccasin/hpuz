@@ -128,14 +128,14 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
     memcpy(base+i, "GRBS", 4);
     i += 4;
 
-    w_le_16(base+i, puz->header.width*puz->header.height);
+    w_le_16(base+i, puz_a);
     i += 2;
 
     w_le_16(base+i, puz->grbs_cksum);
     i += 2;
 
-    memcpy(base+i, puz->grbs, puz->header.width*puz->header.height);
-    i += puz->header.width*puz->header.height;
+    memcpy(base+i, puz->grbs, puz_a);
+    i += puz_a;
 
     base[i] = '\0';
     i++;
@@ -145,17 +145,19 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
 
     // load up rebus table as a string...
     rtbl_str = puz_rtblstr_get(puz);  
+    unsigned int rtbl_sz = Sstrlen(rtbl_str);
     
-    w_le_16(base+i, Sstrlen(rtbl_str));
+    w_le_16(base+i, rtbl_sz);
     i += 2;
 
     w_le_16(base+i, puz->rtbl_cksum);
     i += 2;
 
-    memcpy(base+i, rtbl_str, Sstrlen(rtbl_str));
-    i += Sstrlen(rtbl_str);
+    memcpy(base+i, rtbl_str, rtbl_sz);
+    free (rtbl_str);
+    i += rtbl_sz;
 
-    base[i] = '\0';
+    base[i] = 0;
     i++;
   }
 
@@ -180,16 +182,37 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
     memcpy(base+i, "GEXT", 4);
     i += 4;
 
-    w_le_16(base+i, puz->header.width*puz->header.height);
+    w_le_16(base+i, puz_a);
     i += 2;
 
     w_le_16(base+i, puz->gext_cksum);
     i += 2;
 
-    memcpy(base+i, puz->gext, puz->header.width*puz->header.height);
-    i += puz->header.width*puz->header.height;
+    memcpy(base+i, puz->gext, puz_a);
+    i += puz_a;
 
     base[i] = '\0';
+    i++;
+  }
+
+  if (puz_has_rusr(puz)) {
+    int j;
+    
+    memcpy(base+i, "RUSR", 4);
+    i += 4;
+
+    w_le_16(base+i, puz->rusr_sz);
+    i += 2;
+
+    w_le_16(base+i, puz->rusr_cksum);
+    i += 2;
+
+    unsigned char* rusrstr = puz_rusrstr_get(puz);  // XXX NULL
+    memcpy(base+i, rusrstr, puz->rusr_sz);
+    free(rusrstr);
+
+    i += puz->rusr_sz;
+    base[i] = 0;
     i++;
   }
 

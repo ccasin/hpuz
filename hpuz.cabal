@@ -32,8 +32,8 @@ Library
                      contrib/libpuz/src/load.c,
                      contrib/libpuz/src/save.c,
                      contrib/libpuz/src/puzzle.c
-  ghc-options:       -Wall
-  
+  ghc-options:       -Wall -O2
+
   if os(darwin)
     cc-options:  -U__BLOCKS__
 
