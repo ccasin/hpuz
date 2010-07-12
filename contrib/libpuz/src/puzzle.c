@@ -956,17 +956,16 @@ unsigned char* puz_rusrstr_get(struct puzzle_t *puz) {
 
   unsigned char* rusrstr = malloc( (puz->rusr_sz) * sizeof(unsigned char) );
 
-  int i,j = 0;
+  int j,i = 0;
   for(j = 0; j < board_sz; j++) {
     if(NULL == puz->rusr[j]) {
       rusrstr[i] = 0;
     } else {
       // here we are allowed to not check length, because we did
       // that when we made the rusr board we're outputting
-      Sstrcpy(rusrstr+i, puz->rusr[j]);
-      int len = Sstrlen(puz->rusr[j]);
-      i += len;
-      rusrstr[i+len] = 0;
+      Sstrcpy(rusrstr+i, (puz->rusr)[j]);
+      i += Sstrlen((puz->rusr)[j]);
+      rusrstr[i] = (unsigned char) 0;
     }
     i++;
   }

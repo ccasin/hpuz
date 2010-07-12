@@ -17,8 +17,8 @@ import Foreign.Ptr
 import Foreign.C
 import Foreign.Marshal.Array
 
-import Data.ByteString hiding (map,foldl,foldl',zip,zipWith,length,find,all,
-                               reverse,putStrLn,replicate)
+import Data.ByteString hiding (map,foldl,foldl',zip,zipWith,length,find,
+                               all,any,reverse,putStrLn,replicate)
 import Data.Array
 import Data.List
 import Data.Maybe
@@ -115,9 +115,6 @@ orderClues (i1,d1,_) (i2,d2,_) =
 cucharToChar :: CUChar -> Char
 cucharToChar = toEnum . fromEnum
 
-charToCUChar :: Char -> CUChar
-charToCUChar = toEnum . fromEnum
-
 -- The bool is true of this is a game board and false if it is a solution
 -- board
 charToSquare :: Bool -> [(Int,String)] -> CUChar -> CUChar -> CUChar
@@ -185,8 +182,13 @@ gridToRebus sqs =
             Rebus s _  -> case lookup s rtbl of
                             Nothing -> (n+1, (s,n):rtbl, (toEnum (n+1)):is)
                             Just n' -> (n, rtbl, (toEnum (n'+1)):is)
-            
-        
+
+gridToRusr :: [Square] -> Maybe [Maybe String]
+gridToRusr sqs = 
+  if any isJust strs then Just strs else Nothing
+  where
+    strs :: [Maybe String]
+    strs = map (\sq -> case sq of {Rebus s _ -> Just s; _ -> Nothing}) sqs
 
 -- The first string is the board.  The second string is the rebus board
 -- (or all 0s if none exists).  The [(Int,String)] is the rebus table,
@@ -356,6 +358,9 @@ toPuz (Puzzle {width, height, grid, solution, title, author, notes,
 
       rebusInfo :: Maybe ([(String,Int)],[CUChar])
       rebusInfo = gridToRebus solSqs
+
+      rusrInfo :: Maybe [Maybe String]
+      rusrInfo = gridToRusr gridSqs
   in
   do puz <- puzCreate
             
@@ -386,6 +391,9 @@ toPuz (Puzzle {width, height, grid, solution, title, author, notes,
        Nothing -> return ()
        Just (rtbl,rbd) -> do withArray0 0 rbd (puzSetRebus puz)
                              puzSetRtbl puz rtbl
+     case rusrInfo of
+       Nothing -> return ()
+       Just rusr -> puzSetRusr puz rusr
 
      case locked of
        Nothing -> return ()

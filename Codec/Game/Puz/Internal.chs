@@ -36,11 +36,17 @@ marshallPuz pp = do fp <- newForeignPtr finalizerFree pp
 
 
 -- custom marshallers
+charToCUChar :: Char -> CUChar
+charToCUChar = toEnum . fromEnum
 
 -- shouldn't this be built in?
 boolToCInt :: Bool -> CInt
 boolToCInt True = 1
 boolToCInt False = 0
+
+newString :: String -> IO (Ptr CUChar)
+newString = 
+  newArray0 (toEnum 0) . map charToCUChar
 
 -- IN
 alwaysUseIn :: a -> (a -> b) -> b
@@ -59,9 +65,7 @@ puzIn :: Puz -> (Ptr Puz -> IO b) -> IO b
 puzIn (Puz fp) = withForeignPtr fp
 
 stringIn :: String -> (Ptr CUChar -> IO b) -> IO b
-stringIn str =
-  let cuchars = map ((toEnum :: Int -> CUChar) . fromEnum) str in
-  withArray0 0 cuchars
+stringIn = withArray0 0 . map charToCUChar 
 
 rtblIn :: [(String,Int)] -> (Ptr CUChar -> IO b) -> IO b
 rtblIn tbl = 
@@ -70,6 +74,15 @@ rtblIn tbl =
                         tbl
   in
     stringIn chars
+
+rusrIn :: [Maybe String] -> (Ptr (Ptr CUChar) -> IO b) -> IO b
+rusrIn rusr f =
+  do strs <- mapM (\a -> case a of
+                           Nothing -> return nullPtr
+                           Just s  -> newString s) rusr
+     res <- withArray strs f
+     mapM (\a -> if a == nullPtr then return () else free a) strs
+     return res
 
 -- OUT
 cerrToBool :: CInt -> Bool
@@ -363,7 +376,7 @@ bruteForceOut i =
 
 {# fun puz_rusr_set as puzSetRusr
    { puzIn* `Puz'
-   , id `Ptr (Ptr CUChar)' } 
+   , rusrIn* `[Maybe String]' } 
    ->
    `()'
  #}
