@@ -9,6 +9,11 @@ import Foreign.C
 
 import Text.ParserCombinators.Parsec
 
+-- how to get c2hs to do this?
+foreign import ccall safe "puz.h &puz_deep_free"
+  puzDeepFree :: FunPtr (Ptr Puz -> IO ())
+
+
 {# pointer *puz_head_t as PuzHead foreign newtype #}
 {# pointer *puzzle_t as Puz foreign newtype #}
 
@@ -26,11 +31,11 @@ marshallPuzMaybe :: Ptr Puz -> IO (Maybe Puz)
 marshallPuzMaybe pp = 
   if pp == nullPtr 
     then return Nothing
-    else do fp <- newForeignPtr finalizerFree pp
+    else do fp <- newForeignPtr puzDeepFree pp
             return $ Just $ Puz fp
 
 marshallPuz :: Ptr Puz -> IO Puz
-marshallPuz pp = do fp <- newForeignPtr finalizerFree pp
+marshallPuz pp = do fp <- newForeignPtr puzDeepFree pp
                     return $ Puz fp
 
 
@@ -419,6 +424,11 @@ bruteForceOut i =
    `Maybe Int' bruteForceOut
  #}
 
+--{# fun puz_deep_free as puzDeepFree
+--   { id `Ptr Puz' }
+--   ->
+--   `()'
+-- #}
 
 ------
 ------ C2HS stuff - why isn't there a C2HS module

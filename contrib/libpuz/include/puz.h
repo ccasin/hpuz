@@ -120,7 +120,7 @@ struct puzzle_t {
      We cache the size of its representation in the binary because
      we have to calculate it several times.  This does not include
      the size of the null terminator for the whole rusr data section */
-     
+
 };
 
 #define PUZ_FILE_BINARY 1
@@ -169,6 +169,8 @@ struct puzzle_t *puz_init(struct puzzle_t *puz);
 
 struct puzzle_t *puz_load(struct puzzle_t *retval, int type, unsigned char *base, int sz);
 
+void puz_deep_free(struct puzzle_t *puz);
+
 unsigned short puz_cksum_region(unsigned char *base, int len, 
                                 unsigned short cksum);
 int puz_cksums_calc(struct puzzle_t *puz);
@@ -184,7 +186,6 @@ int puz_width_get(struct puzzle_t *puz);
 
 int puz_height_set(struct puzzle_t *puz, unsigned char val);
 int puz_height_get(struct puzzle_t *puz);
-
 
 unsigned char * puz_solution_get(struct puzzle_t *puz);
 unsigned char * puz_solution_set(struct puzzle_t *puz, unsigned char * val);
@@ -232,6 +233,8 @@ unsigned char * puz_rtbl_set(struct puzzle_t *puz, int n, unsigned char * val);
 unsigned char * puz_rtblstr_get(struct puzzle_t *puz);
 unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, unsigned char * val);
 
+int puz_clear_rtbl(struct puzzle_t *puz);
+
 int puz_has_timer(struct puzzle_t *puz);
 int puz_timer_elapsed_get(struct puzzle_t *puz);
 int puz_timer_stopped_get(struct puzzle_t *puz);
@@ -247,6 +250,8 @@ unsigned char ** puz_rusr_set (struct puzzle_t *puz, unsigned char ** val);
 
 // gets the binary form of the rusr structure
 unsigned char * puz_rusrstr_get (struct puzzle_t *puz);
+
+int puz_clear_rusr(struct puzzle_t *puz);
 
 int puz_is_locked_get(struct puzzle_t *puz);
 unsigned short puz_locked_cksum_get(struct puzzle_t *puz);

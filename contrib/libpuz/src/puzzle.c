@@ -51,6 +51,50 @@ struct puzzle_t *puz_init(struct puzzle_t *puz) {
   return puz;
 }
 
+
+/**
+ * puz_deep_free - this frees all the pointers sitting in a puzzle,
+ *   then the puzzle's memory itself.
+ * 
+ * @puz: pointer to the struct puzzle_t to free
+ * 
+ * This function assumes that all the pointers in a puzzle are to active
+ * memory that has been malloced on the heap.  This is true if the struct
+ * is built up and filled in using the other functions in this library.
+ * However, if you are for some reason building up a puzzle_t using memory
+ * on the stack, don't call this!
+ */
+void puz_deep_free (struct puzzle_t* puz) {
+  if(NULL == puz)
+    return;
+
+  free(puz->solution);
+  free(puz->grid);
+  free(puz->title);
+  free(puz->author);
+  free(puz->copyright);
+
+  if(puz->clues)
+    puz_clear_clues(puz);
+
+  free(puz->notes);
+  free(puz->grbs);
+
+  if(puz->rtbl)
+    puz_clear_rtbl(puz);
+
+  free(puz->ltim);
+  free(puz->gext);
+
+  if(puz->rusr)
+    puz_clear_rusr(puz);
+
+  free(puz);
+
+  return;
+}
+
+
 /**
  * puz_size - calculate the size of a puzzle as a PUZ file
  *
@@ -468,7 +512,7 @@ int puz_clue_count_set(struct puzzle_t *puz, int val) {
 int puz_clear_clues(struct puzzle_t *puz) {
   int i;
 
-  if(NULL == puz)
+  if(NULL == puz || NULL == puz->clues)
     return -1;
 
   for(i = 0; i < puz->header.clue_count; i++)
@@ -699,6 +743,9 @@ unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, unsigned char * val) {
   if (NULL == puz)
     return NULL;
 
+  if (NULL != puz -> rtbl)
+    puz_clear_rtbl(puz);
+
   sz = 0;
   for (i = 0; i < Sstrlen(val); i++) {
     if (';' == val[i])
@@ -725,6 +772,40 @@ unsigned char ** puz_rtblstr_set(struct puzzle_t *puz, unsigned char * val) {
 
   return puz->rtbl;
 }
+
+/**
+ * puz_clear_rtbl - clear out a puzzle's rtbl
+ *
+ * @puz: a pointer to the struct puzzle_t to clear rtbl from (required)
+ *
+ * This function clears out the rtbl.  Specifically, it frees all rtbl
+ * entries, the rtbl storage, and sets the number of rtbl entries.
+ *
+ * Note that any pointers you have to rtbl entries will become invalid after
+ * calling this function.
+ *
+ * Returns -1 on error, 0 on success.
+ */
+int puz_clear_rtbl(struct puzzle_t *puz) {
+  int i;
+  
+  if (NULL == puz || NULL == puz->rtbl)
+    return -1;
+
+  for(i = 0; i < puz->rtbl_sz; i++)
+    free(puz->rtbl[i]);
+
+  free(puz->rtbl);
+
+  puz->rtbl = NULL;
+  puz->rtbl_sz = 0;
+  puz->rtbl_cksum = 0;
+  puz->calc_rtbl_cksum = 0;
+
+  return 0;
+}
+
+
 
 /**
  * puz_has_timer -- checks if a puzzle has time data
@@ -916,8 +997,7 @@ unsigned char ** puz_rusr_set(struct puzzle_t *puz, unsigned char ** val) {
     return NULL;
 
   if (puz->rusr)
-    free(puz->rusr);   // XXX need to deeply free
-  puz->rusr = NULL;
+    puz_clear_rusr(puz);
 
   int puz_sz = puz_width_get(puz) * puz_height_get(puz);
   unsigned char ** rusr = malloc(puz_sz * sizeof (unsigned char*));
@@ -972,6 +1052,43 @@ unsigned char* puz_rusrstr_get(struct puzzle_t *puz) {
   return rusrstr;
 
 }
+
+/**
+ * puz_clear_rusr - clear out a puzzle's rusr memory
+ *
+ * @puz: a pointer to the struct puzzle_t to clear rusr from (required)
+ *
+ * This function clears out the rusr memory.  Specifically, it frees
+ * all rusr table entries, the rusrstorage, and sets the number of
+ * rtbl entries to 0.
+ *
+ * Note that any pointers you have to rusr entries will become invalid
+ * after calling this function.
+ *
+ * Returns -1 on error, 0 on success.
+ */
+int puz_clear_rusr(struct puzzle_t *puz) {
+  int i;
+  
+  if (NULL == puz || NULL == puz->rusr)
+    return -1;
+
+  int bd_sz = puz_width_get(puz) * puz_height_get(puz);
+
+  for(i = 0; i < bd_sz; i++)
+    free(puz->rusr[i]);
+
+  free(puz->rusr);
+
+  puz->rusr = NULL;
+  puz->rusr_sz = 0;
+  puz->rusr_cksum = 0;
+  puz->calc_rusr_cksum = 0;
+
+  return 0;
+}
+
+
 
 /**
  * puz_is_locked_get - check if the puzzle's solution is scrambled

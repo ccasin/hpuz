@@ -2,4 +2,3 @@
 - we're not being consistent about error messages
 - we're not always robust to bad input
 - better documentation
-- rusr needs save handling, and testing
