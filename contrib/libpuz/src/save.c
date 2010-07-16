@@ -196,8 +196,6 @@ static int puz_save_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
   }
 
   if (puz_has_rusr(puz)) {
-    int j;
-    
     memcpy(base+i, "RUSR", 4);
     i += 4;
 

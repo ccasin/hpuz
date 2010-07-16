@@ -1,5 +1,5 @@
 Name:                hpuz
-Version:             1.0.4
+Version:             1.1.0
 Cabal-Version:       >=1.2
 Build-Type:          Simple
 License:             OtherLicense
@@ -11,7 +11,7 @@ Category:            Crosswords
 
 Stability:           Stable
 Synopsis:            Haskell bindings for libpuz
-Tested-With:         GHC >= 6.10.3
+Tested-With:         GHC >= 6.12.3
 Extra-Source-Files:  INSTALL,
                      LICENSE.GPL,
                      LICENSE.MIT,
@@ -25,7 +25,7 @@ Library
   Build-Depends:     base < 5, bytestring >= 0.9, array, parsec >= 3.0.0
   Exposed-modules:   Codec.Game.Puz
   Other-modules:     Codec.Game.Puz.Internal
-  build-tools:       c2hs >= 0.16.0
+  build-tools:       c2hs >= 0.16.2
   include-dirs:      contrib/libpuz/include
   includes:          contrib/libpuz/include/puz.h
   c-sources:         contrib/libpuz/src/cksum.c,
@@ -35,5 +35,7 @@ Library
   ghc-options:       -Wall -O2
 
   if os(darwin)
-    cc-options:  -U__BLOCKS__
+    cc-options:  -U__BLOCKS__ -Wall
+  else
+    cc-options:  -Wall
 

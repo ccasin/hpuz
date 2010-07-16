@@ -216,7 +216,6 @@ unsigned int load_ltim_bin(struct puzzle_t *puz, unsigned char *base,
   }
 
   int i = 0;
-  int bd_sz = puz->header.width*puz->header.height;
 
   puz->ltim_cksum = le_16(base+i);
   i += 2;
@@ -290,12 +289,11 @@ unsigned int load_rusr_bin(struct puzzle_t *puz, unsigned char *base,
   int j;
   for(j = 0; j < bd_sz; j++) {
     if(base[i]) {
-      int len = Sstrlen(base+i);
       // these strings are required to be null terminated...
       // but of course we could be given an ill-formed file, so
       // we use a max size (100) for fun.
-      char* usr_rebus = Sstrndup(base+i, 
-                                 MAX_REBUS_SIZE * (sizeof(unsigned char)));
+      unsigned char* usr_rebus = 
+        Sstrndup(base+i, MAX_REBUS_SIZE * (sizeof(unsigned char)));
       puz->rusr[j] = usr_rebus;
       i += Sstrlen(usr_rebus) + 1;
     } else {
@@ -328,7 +326,6 @@ unsigned int load_rusr_bin(struct puzzle_t *puz, unsigned char *base,
 static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, int sz) {
   int i, j;
   int didmalloc = 0;
-  int rtbl_strsz;
 
   if( (NULL == base) || (sz < 0x34)) {
     printf("NULL region (%p) or size (%d) too small!\n", base, sz);

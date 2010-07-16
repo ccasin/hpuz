@@ -1264,8 +1264,6 @@ int unformat_unlocked_sol(struct puzzle_t* puz, unsigned char* formatted) {
 
   int w = puz_width_get(puz);
   int h = puz_height_get(puz);
-  int board_sz = w*h;
-  int len = Sstrlen(formatted);
 
   unsigned char* sol = puz_solution_get(puz);
 
