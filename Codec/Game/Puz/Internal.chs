@@ -86,7 +86,7 @@ rusrIn rusr f =
                            Nothing -> return nullPtr
                            Just s  -> newString s) rusr
      res <- withArray strs f
-     mapM (\a -> if a == nullPtr then return () else free a) strs
+     mapM_ (\a -> if a == nullPtr then return () else free a) strs
      return res
 
 -- OUT
