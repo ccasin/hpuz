@@ -28,8 +28,6 @@
  * newly-allocated structure.
  */
 struct puzzle_t *puz_init(struct puzzle_t *puz) {
-  int didmalloc;
-
   unsigned char file_magic[12] = FILE_MAGIC;
   unsigned char magic_18[4] = VER_MAGIC;
 
@@ -39,7 +37,6 @@ struct puzzle_t *puz_init(struct puzzle_t *puz) {
       perror("malloc");
       return NULL;
     }
-    didmalloc = 1;
   }
 
   memset(puz, 0, sizeof(struct puzzle_t));

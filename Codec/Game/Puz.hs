@@ -25,6 +25,7 @@ import Data.Maybe
 
 import Control.Monad
 
+
 {- ------ Types ------- -}
 
 {-| The 'Style' type enumerates the possible styles of fillable squares.
@@ -482,9 +483,9 @@ bruteForceUnlockPuz puzzle =
 loadPuzzle :: String -> IO (Either Puzzle ErrMsg)
 loadPuzzle fname =
   do --- Start by getting internal puz representation
-     ehandle <- try (openFile fname ReadMode)
+     ehandle <- tryIOError (openFile fname ReadMode)
      case ehandle of
-       Left err -> 
+       Left err ->
          if isDoesNotExistError err
            then return $ Right $ "File " ++ fname ++ " does not exist."
            else 
@@ -521,7 +522,7 @@ savePuzzle fname puzzle =
                   do saveChk <- puzSave puz ptr sz
                      if not saveChk 
                        then return $ Just "Internal Error: puzSave failed."
-                       else catch 
+                       else catchIOError 
                               (do handle <- openFile fname WriteMode
                                   hPutBuf handle ptr sz
                                   hClose handle

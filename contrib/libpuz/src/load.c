@@ -345,7 +345,7 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
 
   puz->base = base;
   puz->sz = sz;
-	
+        
   if(NULL == read_puz_head(&(puz->header), base)) {
     printf("Error reading header!\n");
 
@@ -400,7 +400,7 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
  
   if(j != puz->header.clue_count) {
     printf("Appear to have run out of clues: sz: %d, i: %d, clues: %d, j: %d\n",
-	   sz, i, puz->header.clue_count, j);
+           sz, i, puz->header.clue_count, j);
 
     if(didmalloc) {
       free(puz);
@@ -484,8 +484,7 @@ static struct puzzle_t *puz_load_bin(struct puzzle_t *puz, unsigned char *base, 
  * @n: maximum search length (look in buf[0]..buf[n-1]
  * @c: unsigned character value to look for.
  *
- * Returns a pointer to the unsigned character if found, else points to buf[n]
- * (which might not actually be in buf!)
+ * Returns a pointer to the unsigned character if found, else returns NULL
  */
 
 static unsigned char *strnchr(unsigned char *buf, int n, unsigned char c) {
@@ -494,7 +493,7 @@ static unsigned char *strnchr(unsigned char *buf, int n, unsigned char c) {
     if(*(buf+i) == c)
       return (buf+i);
   }
-  return(buf+n);
+  return NULL;
 }
 
 /**
@@ -523,6 +522,9 @@ unsigned char *get_one_line(unsigned char **buf, int *n) {
   c = strnchr(b, *n, '\r');
   d = strnchr(b, *n, '\n');
 
+  printf("%p\n",(void*)b);
+  printf("%p\n",(void*)c);
+  printf("%p\n",(void*)d);
   if(c == NULL) // if no \r found, use the \n (unix)
     end = d;
   else if(d == NULL) // if no \n found, use the \r (macos)
@@ -536,10 +538,10 @@ unsigned char *get_one_line(unsigned char **buf, int *n) {
       extra = 1;
     } else {
       if(d == c) { // we must be at end of the buffer
-	extra = -1; // since we're not consuming a \r or \n
-	end = d;
+        extra = -1; // since we're not consuming a \r or \n
+        end = d;
       } else
-	end = (d > c ? d : c); // if find both, but not together, use
+        end = (d > c ? d : c); // if find both, but not together, use
       // earliest (??!!!)
     }
   }
@@ -749,26 +751,28 @@ static struct puzzle_t *puz_load_text(struct puzzle_t *puz, unsigned char *base,
 
   int remaining = sz;
 
-  unsigned char magics[9][17] = { {}, /* no initial magic */
+  unsigned char magics[10][17] = { {}, /* no initial magic */
                          TEXT_FILE_MAGIC,
-			 TEXT_FILE_TITLE_MAGIC,
-			 TEXT_FILE_AUTHOR_MAGIC,
-			 TEXT_FILE_COPYRIGHT_MAGIC,
-			 TEXT_FILE_SIZE_MAGIC,
-			 TEXT_FILE_GRID_MAGIC,
-			 TEXT_FILE_CLUE0_MAGIC,
-			 TEXT_FILE_CLUE1_MAGIC };
+                         TEXT_FILE_TITLE_MAGIC,
+                         TEXT_FILE_AUTHOR_MAGIC,
+                         TEXT_FILE_COPYRIGHT_MAGIC,
+                         TEXT_FILE_SIZE_MAGIC,
+                         TEXT_FILE_GRID_MAGIC,
+                         TEXT_FILE_CLUE0_MAGIC,
+                         TEXT_FILE_CLUE1_MAGIC,
+                         TEXT_FILE_NOTEPAD_MAGIC};
 
   enum states { STATE_INIT = 0, 
-		STATE_FILE = 1, 
-		STATE_TITLE = 2, 
-		STATE_AUTHOR = 3,
-		STATE_COPYRIGHT = 4,
-		STATE_SIZE = 5,
-		STATE_GRID = 6,
-		STATE_CLUE0 = 7,
-		STATE_CLUE1 = 8,
-		STATE_FINAL = 9};
+                STATE_FILE = 1, 
+                STATE_TITLE = 2, 
+                STATE_AUTHOR = 3,
+                STATE_COPYRIGHT = 4,
+                STATE_SIZE = 5,
+                STATE_GRID = 6,
+                STATE_CLUE0 = 7,
+                STATE_CLUE1 = 8,
+                STATE_NOTEPAD = 9,
+                STATE_FINAL = 10};
 
   int state = STATE_INIT; /* current state */
   int state_d = 0; /* state has changed */
@@ -802,9 +806,9 @@ static struct puzzle_t *puz_load_text(struct puzzle_t *puz, unsigned char *base,
 
     if(line[0] == TEXT_SUBMAGIC) {
       if(0 != delim_memcmp(line, magics[state+1])) {
-	printf("Didn't get the right magic line at state %d (%s not %s)!\n", 
-	       state, line, magics[state+1]);
-	return NULL;
+        printf("Didn't get the right magic line at state %d (%s not %s)!\n", 
+               state, line, magics[state+1]);
+        return NULL;
       }
       state_d = 1;
     }
@@ -819,70 +823,78 @@ static struct puzzle_t *puz_load_text(struct puzzle_t *puz, unsigned char *base,
 
       switch(state) {
       case STATE_INIT:
-	break;
+        break;
       case STATE_FILE:
-	break;
+        break;
       case STATE_TITLE:
-	puz_title_set(puz, line_concat(&linelist));
-	break;
+        puz_title_set(puz, line_concat(&linelist));
+        break;
       case STATE_AUTHOR:
-	puz_author_set(puz, line_concat(&linelist));
-	break;
+        puz_author_set(puz, line_concat(&linelist));
+        break;
       case STATE_COPYRIGHT:
-	puz_copyright_set(puz, line_concat(&linelist));
-	break;
+        puz_copyright_set(puz, line_concat(&linelist));
+        break;
       case STATE_SIZE: {
-	unsigned char *buf, *a, *b, *c;
-	int w,h;
-	buf = line_concat(&linelist);
+        unsigned char *buf, *a, *b, *c;
+        int w,h;
+        buf = line_concat(&linelist);
 
-	printf("size line: %s\n", buf);
-	fflush(stdout);
-	a = buf;
-	b = Sstrchr(buf, 'x');
-	c = b+1;
+        printf("size line: %s\n", buf);
+        fflush(stdout);
+        a = buf;
+        b = Sstrchr(buf, 'x');
+        c = b+1;
 
-	if(NULL == a || NULL == b /* || NULL == c is meaningless */) {
-	  printf("Got bad size values or something: '%s'\n", buf);
-	}
+        if(NULL == a || NULL == b /* || NULL == c is meaningless */) {
+          printf("Got bad size values or something: '%s'\n", buf);
+        }
 
-	*b = 0x00;
-	w = Satoi(a);
-	h = Satoi(c);
-	*b = 'x';
+        *b = 0x00;
+        w = Satoi(a);
+        h = Satoi(c);
+        *b = 'x';
 
-	puz_width_set(puz, w);
-	puz_height_set(puz, h);
+        puz_width_set(puz, w);
+        puz_height_set(puz, h);
 
-	break;
+        break;
       }
       case STATE_GRID: {
-	unsigned char *soln = line_concat(&linelist);
-	unsigned char *grid = mkgrid(soln);
-	puz_solution_set(puz, soln);
-	puz_grid_set(puz, grid);
-	break;
+        unsigned char *soln = line_concat(&linelist);
+        unsigned char *grid = mkgrid(soln);
+        puz_solution_set(puz, soln);
+        puz_grid_set(puz, grid);
+        break;
       }
-      case STATE_CLUE0: do_clear = 0;
+      case STATE_CLUE0: {
+        do_clear = 0;
+        break;
+      }
       case STATE_CLUE1: {
-	int j, n_clues = line_count(&linelist);
-	struct line_list *cur;
-	puz_clear_clues(puz);
-	puz_clue_count_set(puz, n_clues);
-	
-	for(j = 0, cur = &linelist;  j < n_clues && cur != NULL; j++, cur = cur->next) {
-	  puz_clue_set(puz, j, cur->line);
-	  printf("Clue %d -> %s\n", j, cur->line);
-	}
-	break;
+        int j, n_clues = line_count(&linelist);
+        struct line_list *cur;
+        puz_clear_clues(puz);
+        puz_clue_count_set(puz, n_clues);
+        
+        for(j = 0, cur = &linelist;  j < n_clues && cur != NULL; j++, cur = cur->next) {
+          puz_clue_set(puz, j, cur->line);
+          printf("Clue %d -> %s\n", j, cur->line);
+        }
+        break;
+      }
+      case STATE_NOTEPAD: {
+        unsigned char* dummy = "dummy note\n";
+        puz_notes_set(puz, dummy);
+        break;
       }
       default:
-	printf("Reached Unknown state: %d\n", state);
-	return NULL;
+        printf("Reached Unknown state: %d\n", state);
+        return NULL;
       }
 
       if(do_clear) {
-	line_clear(&linelist);
+        line_clear(&linelist);
       }
     }
 

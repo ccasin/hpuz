@@ -148,6 +148,7 @@ struct puzzle_t {
 #define TEXT_FILE_GRID_MAGIC { 60, 71, 82, 73, 68, 62, 0 }
 #define TEXT_FILE_CLUE0_MAGIC { 60, 65, 67, 82, 79, 83, 83, 62, 0 }
 #define TEXT_FILE_CLUE1_MAGIC  { 60, 68, 79, 87, 78, 62, 0 }
+#define TEXT_FILE_NOTEPAD_MAGIC { 60, 78, 79, 84, 69, 80, 65, 68, 62, 0 }
 
 #define GEXT_NORMAL  0
 #define GEXT_CIRCLED 128

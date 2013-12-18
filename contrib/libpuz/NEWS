@@ -1,2 +1,28 @@
+1.1.1 (December 17, 2013)
+  - Cleaned up a few warnings
+
+  - Examined reports of a segfault when reading text puzzles.  Fixed
+    the segfault, but it appears this code has never worked correctly
+    (in particular, clues are not assigned the right numbers).  It
+    should not be used.
+
+1.1.0 (July 16, 2010) adds several new features, including:
+
+  - Support for rebus entries from the user.
+
+  - Support for unlocking scrambled puzzle, given a code.
+
+  - A brute force search to find the solution to any scrambled puzzle
+    without the key.
+
+  - Several bugs have been fixed and a number of internal functions
+    have been cleaned up for better stability and memory handling.
+
+1.0.0 (March 11, 2010) includes a variety of bug fixes and is thought
+  to be relatively stable, based on use the application hcross.
+
+0.0.2 adds support for various special features, like circles,
+  rebuses, timers, etc.  Also various bug fixes.
+
 0.0.1 is the initial release, so there's either not much NEWS, or
-everything is NEWS. =)
+  everything is NEWS. =)
